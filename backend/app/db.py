@@ -7,7 +7,9 @@ Python. PostGIS is available in the stack for future spatial queries and tiles.
 """
 from __future__ import annotations
 
-from sqlalchemy import JSON, String, create_engine
+from datetime import datetime, timezone
+
+from sqlalchemy import JSON, DateTime, Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from .config import settings
@@ -26,7 +28,15 @@ class ProfileRow(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, default="")
     city: Mapped[str] = mapped_column(String, default="")
+    owner_id: Mapped[str] = mapped_column(String, index=True, default="public")
     data: Mapped[dict] = mapped_column(JSON)  # serialized Profile
+
+
+class UserRow(Base):
+    __tablename__ = "users"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    email: Mapped[str] = mapped_column(String, index=True, default="")
+    token: Mapped[str] = mapped_column(String, index=True, default="")
 
 
 class ListingRow(Base):
@@ -34,6 +44,17 @@ class ListingRow(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     profile_id: Mapped[str] = mapped_column(String, index=True)
     data: Mapped[dict] = mapped_column(JSON)  # normalized listing dict
+
+
+class SnapshotRow(Base):
+    """A persisted area-analysis run, keyed by profile + criteria signature."""
+    __tablename__ = "analysis_snapshots"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    profile_id: Mapped[str] = mapped_column(String, index=True)
+    signature: Mapped[str] = mapped_column(String, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc))
+    summary: Mapped[dict] = mapped_column(JSON)  # tier_counts, elimination, zones, bbox
 
 
 def init_db() -> None:

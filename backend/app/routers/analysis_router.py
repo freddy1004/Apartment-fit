@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from .. import store
 from ..analysis.engine import run_city_analysis
 from ..analysis.exporters import area_results_to_csv, area_results_to_geojson
+from ..analysis.precompute import warm_routes
 from ..config import settings
 from ..db import get_session
 from ..providers.registry import get_providers
@@ -25,6 +26,7 @@ def _load_or_run(db: Session, profile_id: str, force: bool = False):
     providers = get_providers(settings.provider_mode)
     result = run_city_analysis(profile, providers)
     store.cache_analysis(profile_id, result)
+    store.record_snapshot(db, result)
     return result
 
 
@@ -38,7 +40,24 @@ def run(profile_id: str, db: Session = Depends(get_session)):
         "zone_count": len(result.zones),
         "elimination": result.elimination,
         "bbox": result.bbox,
+        "signature": result.signature,
     }
+
+
+@router.get("/{profile_id}/snapshots")
+def snapshots(profile_id: str, db: Session = Depends(get_session)):
+    """History of persisted analysis runs for this profile."""
+    return store.list_snapshots(db, profile_id)
+
+
+@router.post("/{profile_id}/precompute")
+def precompute(profile_id: str, db: Session = Depends(get_session)):
+    """Warm the routing cache for this profile's grid so later runs are fast."""
+    profile = store.get_profile(db, profile_id)
+    if not profile:
+        raise HTTPException(404, "profile not found")
+    providers = get_providers(settings.provider_mode)
+    return warm_routes(profile, providers)
 
 
 @router.get("/{profile_id}/geojson")
@@ -99,6 +118,21 @@ def pois(profile_id: str, db: Session = Depends(get_session)):
                 "name": c.destination.label, "source": "criterion",
             })
     return layers
+
+
+@router.get("/{profile_id}/layers")
+def layers(profile_id: str, db: Session = Depends(get_session)):
+    """Imported/generated geospatial layers with their GeoJSON for map rendering."""
+    profile = store.get_profile(db, profile_id)
+    if not profile:
+        raise HTTPException(404, "profile not found")
+    return [
+        {
+            "id": l.id, "name": l.name, "kind": l.kind, "units": l.units,
+            "value_property": l.value_property, "geojson": l.features,
+        }
+        for l in profile.layers
+    ]
 
 
 @router.get("/{profile_id}/export.csv")

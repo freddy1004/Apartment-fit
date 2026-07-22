@@ -189,6 +189,51 @@ def direction_boundary(
     )
 
 
+def inclusion_zone(geometry: list, label: str = "inside drawn area",
+                   hard: bool = True, weight: float = 1.0) -> Criterion:
+    """User-drawn area the location must be *inside* of."""
+    return Criterion(
+        id=_new_id(), type=CriterionType.BOUNDARY, scope=Scope.AREA,
+        kind=Kind.HARD if hard else Kind.PREFERENCE, label=label,
+        comparator=Comparator.WITHIN, weight=weight, method=Method.POLYGON,
+        units="zone", geometry=geometry, missing_data=MissingDataBehavior.FAIL,
+    )
+
+
+def exclusion_zone(geometry: list, label: str = "outside drawn area",
+                   hard: bool = True, weight: float = 1.0) -> Criterion:
+    """User-drawn area the location must be *outside* of (e.g. flood zone)."""
+    return Criterion(
+        id=_new_id(), type=CriterionType.BOUNDARY, scope=Scope.AREA,
+        kind=Kind.HARD if hard else Kind.PREFERENCE, label=label,
+        comparator=Comparator.OUTSIDE, weight=weight, method=Method.POLYGON,
+        units="zone", geometry=geometry, missing_data=MissingDataBehavior.FAIL,
+    )
+
+
+def layer_threshold(layer_id: str, layer_property: str, threshold: float,
+                    units: str, label: str, comparator: Comparator = Comparator.LTE,
+                    hard: bool = False, weight: float = 1.0) -> Criterion:
+    """Compare a value sampled from an imported geospatial layer (crime, noise…)."""
+    return Criterion(
+        id=_new_id(), type=CriterionType.GEOSPATIAL, scope=Scope.AREA,
+        kind=Kind.HARD if hard else Kind.PREFERENCE, label=label,
+        threshold=threshold, units=units, comparator=comparator, weight=weight,
+        method=Method.LAYER_VALUE, layer_id=layer_id, layer_property=layer_property,
+        missing_data=MissingDataBehavior.NEUTRAL,
+    )
+
+
+def terrain_max(slope_pct: float = 8.0, hard: bool = False, weight: float = 1.0) -> Criterion:
+    return Criterion(
+        id=_new_id(), type=CriterionType.TERRAIN, scope=Scope.AREA,
+        kind=Kind.HARD if hard else Kind.PREFERENCE,
+        label=f"Local slope <= {slope_pct:g}%", threshold=slope_pct, units="percent",
+        comparator=Comparator.LTE, weight=weight, method=Method.TERRAIN,
+        missing_data=MissingDataBehavior.NEUTRAL,
+    )
+
+
 def transit(minutes: float = 10, hard: bool = False, weight: float = 1.0) -> Criterion:
     return Criterion(
         id=_new_id(),

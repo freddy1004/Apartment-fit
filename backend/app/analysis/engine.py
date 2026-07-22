@@ -1,6 +1,8 @@
 """City-area analysis and listing scoring orchestration."""
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -31,10 +33,48 @@ class AnalysisResult:
     elimination: list[dict]
     tier_counts: dict[str, int]
     bbox: list[float]
+    signature: str = ""
 
     def qualifying_cells(self) -> list[Cell]:
         return [cr.cell for cr in self.cells
                 if cr.score.tier in (Tier.STRONG_FIT, Tier.QUALIFYING, Tier.BORDERLINE)]
+
+    def summary(self) -> dict:
+        return {
+            "profile_id": self.profile_id, "signature": self.signature,
+            "cell_count": len(self.cells), "tier_counts": self.tier_counts,
+            "zone_count": len(self.zones), "elimination": self.elimination,
+            "bbox": self.bbox,
+        }
+
+
+def analysis_signature(profile: Profile) -> str:
+    """Stable hash of everything that affects an area analysis.
+
+    Two profiles with the same signature must produce identical area results, so
+    the signature keys the snapshot cache and lets identical re-runs short-circuit.
+    """
+    # Exclude volatile/cosmetic fields (random id, human label) so two profiles
+    # with the same measurable criteria share a signature.
+    def crit_sig(c) -> dict:
+        d = c.model_dump(mode="json")
+        d.pop("id", None)
+        d.pop("label", None)
+        return d
+
+    crits = sorted(
+        (crit_sig(c) for c in profile.area_criteria()),
+        key=lambda d: json.dumps(d, sort_keys=True),
+    )
+    layers = sorted(
+        ({"value_property": l.value_property, "features": l.features,
+          "default_value": l.default_value} for l in profile.layers),
+        key=lambda d: json.dumps(d, sort_keys=True),
+    )
+    payload = {"bbox": profile.bbox, "cell_size_m": profile.cell_size_m,
+               "criteria": crits, "layers": layers}
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(blob.encode()).hexdigest()[:16]
 
 
 def _nearest_neighborhoods(centroid_lat: float, centroid_lon: float,
@@ -52,6 +92,7 @@ def run_city_analysis(profile: Profile,
     bbox = profile.bbox or _default_bbox(profile)
     cells = generate_grid(bbox, profile.cell_size_m)
     area_criteria = profile.area_criteria()
+    layers = {l.id: l for l in profile.layers}
 
     cell_results: list[CellResult] = []
     # Track per-hard-criterion elimination.
@@ -61,7 +102,7 @@ def run_city_analysis(profile: Profile,
 
     for cell in cells:
         results = [
-            evaluate_area_criterion(c, cell.center_lat, cell.center_lon, providers, bbox)
+            evaluate_area_criterion(c, cell.center_lat, cell.center_lon, providers, bbox, layers)
             for c in area_criteria
         ]
         score = aggregate(results)
@@ -88,22 +129,26 @@ def run_city_analysis(profile: Profile,
     )
 
     # Zones from contiguous qualifying (hard-passing) cells.
+    score_by_id = {cr.cell.id: cr.score for cr in cell_results}
     qualifying = [cr.cell for cr in cell_results if cr.score.hard_passed]
     clusters = group_contiguous(qualifying)
     zones = []
     for i, cluster in enumerate(clusters):
         b = cluster_bounds(cluster)
-        avg_fit = sum(
-            next(cr.score.fit_score for cr in cell_results if cr.cell.id == c.id)
-            for c in cluster
-        ) / len(cluster)
+        avg_fit = sum(score_by_id[c.id].fit_score for c in cluster) / len(cluster)
+        avg_conf = sum(score_by_id[c.id].confidence for c in cluster) / len(cluster)
         zones.append({
             "zone_id": f"zone-{i + 1}",
             **b,
             "avg_fit_score": round(avg_fit, 1),
+            "avg_confidence": round(avg_conf, 2),
             "nearby_neighborhoods": _nearest_neighborhoods(b["centroid_lat"], b["centroid_lon"]),
             "cell_ids": [c.id for c in cluster],
         })
+    # Confidence-aware tie-breaking: larger zones first, then more-confident ones.
+    zones.sort(key=lambda z: (z["cell_count"], z["avg_confidence"]), reverse=True)
+    for i, z in enumerate(zones):
+        z["zone_id"] = f"zone-{i + 1}"
 
     tier_counts: dict[str, int] = {}
     for cr in cell_results:
@@ -112,6 +157,7 @@ def run_city_analysis(profile: Profile,
     return AnalysisResult(
         profile_id=profile.id, cells=cell_results, zones=zones,
         elimination=elimination, tier_counts=tier_counts, bbox=bbox,
+        signature=analysis_signature(profile),
     )
 
 
@@ -134,6 +180,7 @@ class ListingScore:
     combined_fit: float
     combined_tier: str
     matched_zone: Optional[str]
+    confidence: float = 0.0
 
 
 def score_listing(profile: Profile, listing: dict[str, Any],
@@ -148,9 +195,10 @@ def score_listing(profile: Profile, listing: dict[str, Any],
     providers = providers or get_providers()
     bbox = profile.bbox or _default_bbox(profile)
     lat, lon = listing["lat"], listing["lon"]
+    layers = {l.id: l for l in profile.layers}
 
     area_results = [
-        evaluate_area_criterion(c, lat, lon, providers, bbox)
+        evaluate_area_criterion(c, lat, lon, providers, bbox, layers)
         for c in profile.area_criteria()
     ]
     area_score = aggregate(area_results)
@@ -188,7 +236,9 @@ def score_listing(profile: Profile, listing: dict[str, Any],
                 matched_zone = z["zone_id"]
                 break
 
+    confidence = round((area_score.confidence + listing_agg.confidence) / 2.0, 2)
     return ListingScore(
         listing_id=str(listing.get("id", "")), area=area_score, listing=listing_agg,
         combined_fit=round(combined, 1), combined_tier=tier, matched_zone=matched_zone,
+        confidence=confidence,
     )

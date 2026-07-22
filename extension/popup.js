@@ -22,14 +22,17 @@ $("extract").addEventListener("click", async () => {
   setStatus("Extracting…");
   try {
     const tab = await activeTab();
-    const [res] = await chrome.scripting.executeScript({
+    // parse.js first (defines window.AFParse), then the orchestrator.
+    const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ["extract.js"],
+      files: ["parse.js", "extract.js"],
     });
+    const res = results[results.length - 1];
     if (res && res.result) {
       fill(res.result);
       const any = FIELDS.some((f) => res.result[f] != null);
-      setStatus(any ? "Extracted. Review and edit before sending." : "Nothing detected — enter fields manually.", any ? "ok" : "err");
+      const via = res.result.adapter ? ` (via ${res.result.adapter} adapter)` : "";
+      setStatus(any ? `Extracted${via}. Review and edit before sending.` : `Nothing detected${via} — enter fields manually.`, any ? "ok" : "err");
     } else {
       setStatus("Extraction failed — enter fields manually.", "err");
     }

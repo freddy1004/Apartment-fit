@@ -47,6 +47,9 @@ class Method(str, enum.Enum):
     NUMERIC = "numeric"          # a numeric listing field (rent, sqft, ...)
     BOOLEAN = "boolean"          # a yes/no listing field (parking, pets, ...)
     COUNT = "count"              # count of amenities within a radius
+    POLYGON = "polygon"          # point-in-polygon test vs user-drawn geometry
+    LAYER_VALUE = "layer_value"  # sample a value from an imported geospatial layer
+    TERRAIN = "terrain"          # slope / elevation at the point
 
 
 class Comparator(str, enum.Enum):
@@ -56,6 +59,8 @@ class Comparator(str, enum.Enum):
     TRUE = "true"  # boolean must be true
     NORTH_OF = "north_of"
     SOUTH_OF = "south_of"
+    WITHIN = "within"    # point must be inside the geometry/layer zone
+    OUTSIDE = "outside"  # point must be outside the geometry/layer zone
 
 
 class MissingDataBehavior(str, enum.Enum):
@@ -116,12 +121,36 @@ class Criterion(BaseModel):
     missing_data: MissingDataBehavior = MissingDataBehavior.NEUTRAL
     enabled: bool = True
 
+    # Geospatial extras (used by POLYGON / LAYER_VALUE criteria):
+    #   geometry: list of GeoJSON polygon rings [[[lon,lat],...], ...] for
+    #             user-drawn inclusion/exclusion zones (BOUNDARY criteria).
+    #   layer_id / layer_property: reference an imported Layer and the numeric
+    #             property to sample (GEOSPATIAL criteria).
+    geometry: Optional[list] = None
+    layer_id: Optional[str] = None
+    layer_property: Optional[str] = None
+
     @field_validator("weight")
     @classmethod
     def _weight_non_negative(cls, v: float) -> float:
         if v < 0:
             raise ValueError("weight must be >= 0")
         return v
+
+
+class Layer(BaseModel):
+    """An imported/generated geospatial layer of polygon features.
+
+    Each feature carries numeric ``properties`` that ``LAYER_VALUE`` criteria can
+    sample by point-in-polygon (e.g. a crime-rate grid or noise contours).
+    """
+    id: str
+    name: str
+    kind: str = "choropleth"          # choropleth | zone
+    units: str = ""
+    value_property: Optional[str] = None
+    default_value: Optional[float] = None  # value when a point falls outside all features
+    features: dict = Field(default_factory=dict)  # a GeoJSON FeatureCollection
 
 
 class Profile(BaseModel):
@@ -135,6 +164,10 @@ class Profile(BaseModel):
     bbox: list[float] = Field(default_factory=list)  # [min_lon,min_lat,max_lon,max_lat]
     cell_size_m: float = 400.0
     criteria: list[Criterion] = Field(default_factory=list)
+    layers: list[Layer] = Field(default_factory=list)
+
+    def layer(self, layer_id: str) -> Optional[Layer]:
+        return next((l for l in self.layers if l.id == layer_id), None)
 
     def area_criteria(self) -> list[Criterion]:
         return [c for c in self.criteria if c.scope == Scope.AREA and c.enabled]

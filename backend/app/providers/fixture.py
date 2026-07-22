@@ -13,6 +13,8 @@ import os
 import re
 from typing import Optional
 
+import math
+
 from ..analysis.geo import haversine_m
 from .base import (
     GeocodeResult,
@@ -21,6 +23,8 @@ from .base import (
     PoiProvider,
     RouteResult,
     RoutingProvider,
+    TerrainProvider,
+    TerrainResult,
 )
 
 _DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "seattle.json")
@@ -76,6 +80,35 @@ class FixturePoiProvider(PoiProvider):
                 out.append(Poi(lat=it["lat"], lon=it["lon"], name=it["name"],
                                category=category, source=self.name))
         return out[:limit]
+
+
+class FixtureTerrainProvider(TerrainProvider):
+    """Deterministic synthetic terrain.
+
+    Real deployments plug in an elevation raster (e.g. SRTM/NED) here; the
+    fixture uses a smooth analytic surface so results are reproducible and
+    testable. Slope is the gradient magnitude of the elevation field, in percent.
+    """
+    name = "fixture-terrain"
+
+    def _elevation(self, lat: float, lon: float) -> float:
+        # A gentle ridged surface: hills spaced ~0.02deg, amplitude ~60m.
+        return (
+            60.0 * (0.5 + 0.5 * math.sin(lat * 210.0) * math.cos(lon * 190.0))
+            + 20.0 * math.sin(lon * 90.0)
+        )
+
+    def sample(self, lat: float, lon: float) -> TerrainResult:
+        d = 0.0009  # ~100m
+        e = self._elevation(lat, lon)
+        # central-difference gradient over ~100m in each direction
+        de_lat = (self._elevation(lat + d, lon) - self._elevation(lat - d, lon)) / 2
+        de_lon = (self._elevation(lat, lon + d) - self._elevation(lat, lon - d)) / 2
+        run_m = 100.0
+        rise = math.hypot(de_lat, de_lon)
+        slope_pct = min(60.0, rise / run_m * 100.0)
+        return TerrainResult(slope_pct=slope_pct, elevation_m=e, confidence=0.5,
+                             source=self.name, is_fallback=True)
 
 
 _LATLON_RE = re.compile(r"(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)")

@@ -12,7 +12,20 @@ score and every failure.
 - **Providers:** pluggable interfaces for geocoding / routing / POIs, with real
   self-hosted **OpenStreetMap** adapters (OSRM, Nominatim, Overpass) **and**
   bundled open-data **fixtures** so everything runs offline with no keys.
-- **Browser extension:** compliant MV3 capture tool (Chrome/Edge).
+- **Browser extension:** compliant MV3 capture tool (Chrome/Edge) with per-site adapters.
+
+### v0.2 additions (roadmap items now implemented)
+
+- **Geospatial layers & drawn zones** — import GeoJSON choropleth layers and draw
+  inclusion/exclusion polygons on the map; both feed real point-in-polygon
+  criteria. Generated **crime** and **noise** fixture layers back the "safe" and
+  "quiet" proxies, plus a **terrain (slope)** provider.
+- **Persisted analysis snapshots** keyed by a criteria signature, with run
+  history and confidence-aware tie-breaking of zones and listings.
+- **Routing precompute** endpoint that warms the cache so threshold/weight edits
+  re-run incrementally; **prebuilt-OSRM** image + `scripts/build-osrm.sh`.
+- **Opt-in auth** (bearer tokens, per-user ownership) and **saved-search
+  matching** with a pluggable alert notifier.
 
 ---
 
@@ -71,8 +84,9 @@ cd frontend && npx playwright install chromium && npx playwright test
 
 | Suite | Command | Result |
 |-------|---------|--------|
-| Backend unit + integration + API E2E | `pytest -q` | **35 passed** |
-| Frontend unit | `npm test` (vitest) | **4 passed** |
+| Backend unit + integration + API E2E | `pytest -q` | **58 passed** |
+| Frontend unit | `npm test` (vitest) | **5 passed** |
+| Extension parser unit | `node --test extension/` | **4 passed** |
 | Frontend build/typecheck | `npm run build` | **compiled, types valid** |
 
 Backend coverage includes: geospatial math & grid generation, criteria builder &
@@ -134,11 +148,15 @@ entrance — plus transit/parks/rent/bedroom preferences.
 ```
 frontend/  Next.js UI ── /api proxy ──▶ backend/  FastAPI
                                           ├─ criteria/   schema + builder + ambiguity
-                                          ├─ analysis/   geo, scoring engine, engine, exporters, demo
-                                          ├─ providers/  base interfaces + osm adapters + fixtures + registry
-                                          ├─ listings/   multi-source ingestion
-                                          └─ routers/    profiles, analysis, listings, criteria
-db/  PostgreSQL + PostGIS       extension/  MV3 capture tool
+                                          ├─ analysis/   geo, spatial, scoring, engine, layers,
+                                          │              precompute, exporters, demo
+                                          ├─ providers/  base interfaces + osm adapters + fixtures
+                                          │              (routing/geocoding/POI/terrain) + registry
+                                          ├─ listings/   multi-source ingestion + matcher
+                                          ├─ auth.py     opt-in bearer-token auth + ownership
+                                          └─ routers/    auth, profiles, analysis, listings, criteria
+db/  PostgreSQL + PostGIS       extension/  MV3 capture tool (parse.js adapters)
+docker/osrm/  prebuilt graph    scripts/  build-osrm.sh, package-extension.sh
 ```
 
 Geometry/scoring math runs in Python (haversine + grid) so correctness doesn't
@@ -206,11 +224,14 @@ implementing `providers/base.py`.
   cells will produce many cells (analysis is cached per profile; OSM mode adds
   per-route HTTP latency mitigated by the route cache).
 - Terrain, user-drawn inclusion/exclusion zones, and imported geospatial layers
-  are modeled in the criteria schema (`terrain`, `boundary`, `geospatial`) with
-  the direction-boundary case fully implemented; freehand polygon drawing and
-  arbitrary GeoJSON import are not yet wired into the map UI.
+  are fully implemented (draw on the map, import GeoJSON, point-in-polygon
+  criteria). The backing crime/noise/terrain layers are **synthetic fixtures**
+  for demonstration — swap in licensed open data for production.
 - The browser extension reads only **user-visible** structured data on demand; it
   won't fill fields a site renders purely as images or hides behind interaction.
+  Site adapters use best-effort selectors that listing sites change over time.
+- Opt-in auth uses simple bearer tokens (no password hashing/OAuth) and adds an
+  `owner_id` column; existing databases predating it need a migration.
 
 ---
 
@@ -224,16 +245,31 @@ and always falls back to manual entry.
 
 ---
 
-## Recommended next steps
+## Roadmap status
 
-1. Ship OSM providers by default with a prebuilt regional OSRM graph baked into
-   an image; add isochrone precompute for faster large-city analysis.
-2. Add freehand inclusion/exclusion polygon drawing and GeoJSON layer import to
-   the map, feeding the existing `boundary`/`geospatial` criteria.
-3. Persist scored snapshots and add confidence-aware tie-breaking; add per-cell
-   caching keyed by criteria hash for incremental re-runs.
-4. Real crime/noise/terrain layers to back the "safe"/"quiet"/terrain proxies the
-   ambiguity flagger suggests.
-5. Auth + multi-user saved searches; alerting when new listings match a profile.
-6. Package the extension for the Chrome/Edge stores with site-specific
-   visible-DOM adapters and a shared review UI.
+The original next-steps are now implemented (see **v0.2 additions** above):
+
+1. ✅ Prebuilt regional OSRM image (`docker/osrm/Dockerfile`, `scripts/build-osrm.sh`)
+   + routing precompute (`POST /api/analysis/{id}/precompute`).
+2. ✅ Freehand inclusion/exclusion polygon drawing + GeoJSON layer import on the
+   map, feeding `boundary`/`geospatial` point-in-polygon criteria.
+3. ✅ Persisted analysis snapshots keyed by criteria signature, run history, and
+   confidence-aware tie-breaking; provider-level route/geocode caches make
+   threshold/weight edits re-run incrementally.
+4. ✅ Crime/noise fixture layers + terrain (slope) provider backing the
+   "safe"/"quiet"/terrain proxies the ambiguity flagger suggests.
+5. ✅ Opt-in bearer-token auth with per-user ownership + saved-search matching
+   (`GET /api/profiles/{id}/listings/matches`) and a pluggable alert notifier.
+6. ✅ Extension per-site adapters (Zillow/Apartments.com/Redfin/Trulia/generic),
+   unit-tested pure parser, and a store-packaging script.
+
+### Further work
+
+- Replace the synthetic crime/noise/terrain fixtures with licensed open data
+  (police-incident feeds, DOT noise models, SRTM/NED elevation rasters).
+- Batch-precompute isochrone surfaces per destination and cache tiles for
+  very large cities; add per-cell result caching keyed by measurement signature.
+- Email/push/webhook notifiers behind the `Notifier` interface; scheduled alert
+  runs when new listings arrive.
+- Store-ready extension review UI with editable field diffs and site coverage
+  for more listing providers.

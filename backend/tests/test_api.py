@@ -90,6 +90,39 @@ def test_full_journey(client):
     assert r.json()["city"] == "Portland"
 
 
+def test_geospatial_endpoints(client):
+    pid = client.post("/api/profiles/seed-demo").json()["id"]
+    client.post(f"/api/analysis/{pid}/run")
+
+    # demo ships crime + noise layers
+    layers = client.get(f"/api/analysis/{pid}/layers").json()
+    ids = {l["id"] for l in layers}
+    assert {"crime", "noise"} <= ids
+
+    # draw an inclusion zone covering north Seattle; south cells should now fail it
+    ring = [[-122.42, 47.66], [-122.27, 47.66], [-122.27, 47.73], [-122.42, 47.73], [-122.42, 47.66]]
+    crit = client.post(f"/api/profiles/{pid}/criteria/boundary",
+                       json={"geometry": [ring], "mode": "inclusion", "hard": True}).json()
+    assert crit["method"] == "polygon"
+    run = client.post(f"/api/analysis/{pid}/run").json()
+    assert any(e["criterion_id"] == crit["id"] and e["eliminated"] > 0 for e in run["elimination"])
+
+    # import a small choropleth layer + a criterion referencing it
+    gj = {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "properties": {"score": 10, "name": "a"},
+         "geometry": {"type": "Polygon", "coordinates": [ring]}}]}
+    imp = client.post(f"/api/profiles/{pid}/layers/import",
+                      json={"name": "Test", "value_property": "score", "geojson": gj}).json()
+    assert imp["feature_count"] == 1
+    lc = client.post(f"/api/profiles/{pid}/criteria/layer", json={
+        "layer_id": imp["layer_id"], "layer_property": "score", "threshold": 20,
+        "units": "pts", "label": "score <= 20", "hard": False, "weight": 1.0}).json()
+    assert lc["layer_id"] == imp["layer_id"]
+
+    # delete the boundary criterion
+    assert client.delete(f"/api/profiles/{pid}/criteria/{crit['id']}").status_code == 200
+
+
 def test_ambiguity_endpoint(client):
     r = client.post("/api/criteria/flag-ambiguities", json={"text": "somewhere safe and quiet"})
     terms = {f["term"] for f in r.json()["flags"]}

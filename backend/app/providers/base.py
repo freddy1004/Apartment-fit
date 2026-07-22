@@ -70,3 +70,20 @@ class PoiProvider(abc.ABC):
         self, category: str, bbox: list[float], limit: int = 200,
     ) -> list[Poi]:
         ...
+
+
+@dataclass
+class TerrainResult:
+    slope_pct: float       # local grade, percent rise/run
+    elevation_m: float
+    confidence: float
+    source: str
+    is_fallback: bool
+
+
+class TerrainProvider(abc.ABC):
+    name: str = "abstract"
+
+    @abc.abstractmethod
+    def sample(self, lat: float, lon: float) -> TerrainResult:
+        ...

@@ -24,3 +24,42 @@ If extraction finds nothing, fill the fields manually and send — the popup
 always falls back to manual confirmation.
 
 The extension posts to `POST /api/profiles/{profileId}/listings/extension`.
+
+## Site adapters
+
+Extraction is adapter-driven (`parse.js` + `extract.js`). `pickAdapter(hostname)`
+selects a per-site adapter whose declarative selector lists say which
+**user-visible** elements to read; results are merged with generic JSON-LD,
+Open Graph, and visible-text passes. Built-in adapters:
+
+| Site | Host match |
+|------|-----------|
+| Zillow | `zillow.com` |
+| Apartments.com | `apartments.com` |
+| Redfin | `redfin.com` |
+| Trulia | `trulia.com` |
+| _fallback_ | `generic` (JSON-LD + meta + visible text) |
+
+Add a new site by appending a selector config to `ADAPTERS` in `parse.js` — no
+DOM code needed. Selectors only ever read visible fields on the page the user
+has open.
+
+## Tests
+
+The pure parser has unit tests (no DOM needed):
+
+```bash
+node --test extension/          # 4 tests: num, parseBedBathSqft, parseRent, pickAdapter
+```
+
+## Packaging for the Chrome/Edge stores
+
+```bash
+scripts/package-extension.sh    # -> dist/apartment-fit-extension.zip
+```
+
+Upload the zip in the Chrome Web Store / Edge Add-ons developer dashboard, or
+distribute it for "Load unpacked". `activeTab` + on-click injection means the
+extension needs no broad host permissions — it only touches a page when you
+click **Extract** on it. `host_permissions` is limited to `localhost` for the
+API call; change it to your deployed API origin before publishing.

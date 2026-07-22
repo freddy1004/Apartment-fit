@@ -20,6 +20,7 @@ from ..criteria.schema import (
 )
 from ..providers.registry import Providers
 from .geo import haversine_m, meters_to_miles
+from .spatial import point_in_geometry, sample_layer_value
 
 # Tier thresholds on the 0..100 preference score (only for hard-passing units).
 STRONG_FIT = 80.0
@@ -156,9 +157,87 @@ def _missing_result(c: Criterion, reason: str) -> CriterionResult:
 #  Area criteria
 # --------------------------------------------------------------------------- #
 
+def _boolean_result(c: Criterion, ok: bool, raw: float, confidence: float,
+                    source: str, explanation: str, fallback: bool = False,
+                    detail: Optional[dict] = None) -> CriterionResult:
+    passed = ok if c.kind == Kind.HARD else True
+    pref = (1.0 if ok else 0.0) if c.kind == Kind.PREFERENCE else None
+    return CriterionResult(
+        criterion_id=c.id, label=c.label, kind=c.kind.value, passed=passed,
+        preference_score=pref, raw_value=raw, units=c.units, threshold=c.threshold,
+        weight=c.weight, confidence=confidence, source=source, is_fallback=fallback,
+        missing=False, explanation=explanation, detail=detail or {},
+    )
+
+
+def _evaluate_polygon(c: Criterion, lat: float, lon: float) -> CriterionResult:
+    """User-drawn inclusion/exclusion zone (BOUNDARY criterion)."""
+    if not c.geometry:
+        return _missing_result(c, "no geometry drawn")
+    inside = point_in_geometry(lon, lat, c.geometry)
+    want_inside = c.comparator != Comparator.OUTSIDE  # WITHIN by default
+    ok = inside if want_inside else (not inside)
+    zone = "inclusion" if want_inside else "exclusion"
+    return _boolean_result(
+        c, ok, 1.0 if inside else 0.0, 1.0, "geometry",
+        f"Point is {'inside' if inside else 'outside'} the {zone} zone "
+        f"({'passes' if ok else 'fails'}).",
+    )
+
+
+def _evaluate_layer(c: Criterion, lat: float, lon: float, layers: dict) -> CriterionResult:
+    """Sample a numeric value from an imported geospatial layer and compare it."""
+    layer = layers.get(c.layer_id) if c.layer_id else None
+    if not layer:
+        return _missing_result(c, f"layer '{c.layer_id}' not found")
+    prop = c.layer_property or layer.value_property
+    value, feat_name = sample_layer_value(
+        lon, lat, layer.features, prop, layer.default_value)
+    if value is None:
+        return _missing_result(c, f"no '{prop}' value at this location")
+    passed = _hard_ok(c, value) if c.kind == Kind.HARD else True
+    pref = _pref_score(c, value) if c.kind == Kind.PREFERENCE else None
+    verb = "meets" if _hard_ok(c, value) else "exceeds"
+    return CriterionResult(
+        criterion_id=c.id, label=c.label, kind=c.kind.value, passed=passed,
+        preference_score=pref, raw_value=round(value, 3), units=c.units,
+        threshold=c.threshold, weight=c.weight, confidence=0.7,
+        source=f"layer:{layer.id}", is_fallback=False, missing=False,
+        explanation=f"{layer.name} {prop}={value:g} {verb} threshold {c.threshold} "
+                    f"({c.comparator.value}){f' at {feat_name}' if feat_name else ''}.",
+        detail={"layer": layer.id, "feature": feat_name},
+    )
+
+
+def _evaluate_terrain(c: Criterion, lat: float, lon: float,
+                      providers: Providers) -> CriterionResult:
+    t = providers.terrain(lat, lon)
+    measured = t.slope_pct
+    passed = _hard_ok(c, measured) if c.kind == Kind.HARD else True
+    pref = _pref_score(c, measured) if c.kind == Kind.PREFERENCE else None
+    verb = "within" if _hard_ok(c, measured) else "exceeds"
+    return CriterionResult(
+        criterion_id=c.id, label=c.label, kind=c.kind.value, passed=passed,
+        preference_score=pref, raw_value=round(measured, 2), units=c.units or "percent",
+        threshold=c.threshold, weight=c.weight, confidence=t.confidence,
+        source=t.source, is_fallback=t.is_fallback, missing=False,
+        explanation=f"Local slope {measured:.1f}% {verb} threshold {c.threshold}% "
+                    f"(elevation {t.elevation_m:.0f} m).",
+        detail={"elevation_m": round(t.elevation_m, 1)},
+    )
+
+
 def evaluate_area_criterion(
     c: Criterion, lat: float, lon: float, providers: Providers, bbox: list[float],
+    layers: Optional[dict] = None,
 ) -> CriterionResult:
+    if c.method == Method.POLYGON:
+        return _evaluate_polygon(c, lat, lon)
+    if c.method == Method.LAYER_VALUE:
+        return _evaluate_layer(c, lat, lon, layers or {})
+    if c.method == Method.TERRAIN:
+        return _evaluate_terrain(c, lat, lon, providers)
+
     if c.method == Method.DIRECTION:
         measured = lat
         passed = _hard_ok(c, measured) if c.kind == Kind.HARD else True

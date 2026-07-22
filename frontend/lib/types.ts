@@ -110,6 +110,7 @@ export interface ScoredListing {
   combined_fit: number;
   combined_tier: Tier;
   matched_zone: string | null;
+  confidence?: number;
   area: { fit_score: number; hard_passed: boolean; tier: Tier; results: CriterionResult[] };
   listing_score: { fit_score: number; hard_passed: boolean; tier: Tier; results: CriterionResult[] };
 }

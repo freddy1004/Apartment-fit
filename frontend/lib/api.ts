@@ -34,7 +34,30 @@ export const api = {
   cellDetail: (id: string, cell: string) =>
     fetch(`/api/analysis/${id}/cells/${cell}`).then(j<CellDetail>),
   zones: (id: string) => fetch(`/api/analysis/${id}/zones`).then(j<Zone[]>),
+  snapshots: (id: string) =>
+    fetch(`/api/analysis/${id}/snapshots`).then(
+      j<{ id: number; signature: string; created_at: string; tier_counts: Record<string, number>; zone_count: number; cell_count: number }[]>,
+    ),
   pois: (id: string) => fetch(`/api/analysis/${id}/pois`).then(j<Record<string, any[]>>),
+  layers: (id: string) =>
+    fetch(`/api/analysis/${id}/layers`).then(
+      j<{ id: string; name: string; value_property: string | null; geojson: any }[]>,
+    ),
+
+  addBoundary: (pid: string, geometry: number[][], mode: "inclusion" | "exclusion", hard: boolean) =>
+    fetch(`/api/profiles/${pid}/criteria/boundary`, { method: "POST", headers: H, body: JSON.stringify({ geometry: [geometry], mode, hard }) }).then(
+      j<any>,
+    ),
+  importLayer: (pid: string, body: { name: string; value_property?: string; units?: string; default_value?: number; geojson: any }) =>
+    fetch(`/api/profiles/${pid}/layers/import`, { method: "POST", headers: H, body: JSON.stringify(body) }).then(
+      j<{ layer_id: string; feature_count: number }>,
+    ),
+  addLayerCriterion: (pid: string, body: any) =>
+    fetch(`/api/profiles/${pid}/criteria/layer`, { method: "POST", headers: H, body: JSON.stringify(body) }).then(
+      j<any>,
+    ),
+  deleteCriterion: (pid: string, cid: string) =>
+    fetch(`/api/profiles/${pid}/criteria/${cid}`, { method: "DELETE" }).then(j<any>),
 
   flagAmbiguities: (text: string) =>
     fetch("/api/criteria/flag-ambiguities", { method: "POST", headers: H, body: JSON.stringify({ text }) }).then(
@@ -65,6 +88,10 @@ export const api = {
   deleteListing: (pid: string, lid: string) =>
     fetch(`/api/profiles/${pid}/listings/${lid}`, { method: "DELETE" }).then(j<any>),
   scoredListings: (pid: string) => fetch(`/api/profiles/${pid}/listings/scored`).then(j<ScoredListing[]>),
+  matches: (pid: string) =>
+    fetch(`/api/profiles/${pid}/listings/matches`).then(
+      j<{ match_count: number; matches: { listing_id: string; address: string; combined_fit: number; combined_tier: string }[] }>,
+    ),
 
   areaCsvUrl: (id: string) => `/api/analysis/${id}/export.csv`,
   areaGeojsonUrl: (id: string) => `/api/analysis/${id}/export.geojson`,

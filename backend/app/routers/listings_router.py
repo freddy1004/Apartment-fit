@@ -11,6 +11,7 @@ from ..analysis.exporters import listing_scores_to_csv
 from ..config import settings
 from ..db import get_session
 from ..listings import ingest
+from ..listings.matcher import run_alerts
 from ..providers.registry import get_providers
 
 router = APIRouter(prefix="/api/profiles/{profile_id}/listings", tags=["listings"])
@@ -159,6 +160,7 @@ def scored(profile_id: str, db: Session = Depends(get_session)):
             "combined_fit": sc.combined_fit,
             "combined_tier": sc.combined_tier,
             "matched_zone": sc.matched_zone,
+            "confidence": sc.confidence,
             "area": sc.area.to_dict(),
             "listing_score": sc.listing.to_dict(),
         }
@@ -173,3 +175,18 @@ def export_csv(profile_id: str, db: Session = Depends(get_session)):
     csv_text = listing_scores_to_csv(scores, by_id)
     return Response(csv_text, media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="{profile_id}-listings.csv"'})
+
+
+@router.get("/matches")
+def matches(profile_id: str, db: Session = Depends(get_session)):
+    """Saved-search matches: stored listings passing every hard requirement.
+
+    Runs them through the alert notifier (logging by default) -- the foundation
+    for "notify me when a new listing matches this profile".
+    """
+    profile = _require_profile(db, profile_id)
+    providers = get_providers(settings.provider_mode)
+    analysis = store.get_cached_analysis(profile_id)
+    listings = store.list_listings(db, profile_id)
+    matched = run_alerts(profile, listings, providers, analysis)
+    return {"profile_id": profile_id, "match_count": len(matched), "matches": matched}

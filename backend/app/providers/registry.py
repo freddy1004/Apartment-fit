@@ -23,10 +23,12 @@ from .base import (
     RouteResult,
     RoutingProvider,
 )
+from .base import TerrainResult
 from .fixture import (
     FixtureGeocodingProvider,
     FixturePoiProvider,
     FixtureRoutingProvider,
+    FixtureTerrainProvider,
 )
 
 
@@ -42,6 +44,7 @@ class Providers:
         self.fixture_routing = FixtureRoutingProvider()
         self.fixture_poi = FixturePoiProvider()
         self.fixture_geo = FixtureGeocodingProvider()
+        self.fixture_terrain = FixtureTerrainProvider()
         # Simple in-process caches (spec: cache routing & geocoding results).
         self._route_cache: dict[tuple, RouteResult] = {}
         self._geo_cache: dict[str, Optional[GeocodeResult]] = {}
@@ -99,6 +102,11 @@ class Providers:
             result = self.fixture_geo.geocode(address)
         self._geo_cache[address] = result
         return result
+
+    # -- terrain -------------------------------------------------------------
+    def terrain(self, lat: float, lon: float) -> TerrainResult:
+        # OSM/elevation terrain source could go here; fixture is deterministic.
+        return self.fixture_terrain.sample(lat, lon)
 
     # -- pois ----------------------------------------------------------------
     def find_pois(self, category: str, bbox: list[float], limit: int = 200) -> list[Poi]:

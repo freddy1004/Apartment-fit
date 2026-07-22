@@ -17,6 +17,7 @@ export default function ListingsPanel({
   const [hideIneligible, setHideIneligible] = useState(false);
   const [compare, setCompare] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [matchMsg, setMatchMsg] = useState("");
 
   // add-forms state
   const [address, setAddress] = useState("");
@@ -116,8 +117,13 @@ export default function ListingsPanel({
             <input type="checkbox" style={{ width: "auto", marginRight: 4 }} checked={hideIneligible} onChange={(e) => setHideIneligible(e.target.checked)} />
             hide ineligible
           </label>
+          <button className="small" style={{ flex: "0 0 auto" }}
+            onClick={async () => { const r = await api.matches(pid); setMatchMsg(`${r.match_count} listing(s) match all hard requirements${r.matches.length ? ": " + r.matches.map((m) => m.address || m.listing_id).join(", ") : ""}`); }}>
+            Saved-search matches
+          </button>
           <a style={{ flex: "0 0 auto" }} href={api.listingsCsvUrl(pid)}><button className="small">Export CSV</button></a>
         </div>
+        {matchMsg && <div className="explain pass" style={{ marginBottom: 8 }}>🔔 {matchMsg}</div>}
         <table>
           <thead>
             <tr>
@@ -128,6 +134,7 @@ export default function ListingsPanel({
               <th onClick={() => sort("area")}>Area</th>
               <th onClick={() => sort("listing")}>Apt</th>
               <th onClick={() => sort("combined_fit")}>Combined</th>
+              <th title="confidence">conf</th>
               <th>★</th><th>cmp</th><th></th>
             </tr>
           </thead>
@@ -141,6 +148,7 @@ export default function ListingsPanel({
                 <td>{s.area.hard_passed ? s.area.fit_score : "✗"}</td>
                 <td>{s.listing_score.hard_passed ? s.listing_score.fit_score : "✗"}</td>
                 <td><strong>{s.combined_fit}</strong></td>
+                <td className="muted">{s.confidence != null ? s.confidence.toFixed(2) : "—"}</td>
                 <td style={{ cursor: "pointer" }} onClick={() => wrap(() => api.updateListing(pid, s.listing.id, { favorite: !s.listing.favorite }))}>
                   {s.listing.favorite ? "★" : "☆"}
                 </td>
@@ -151,7 +159,7 @@ export default function ListingsPanel({
                 <td style={{ cursor: "pointer", color: "var(--bad)" }} onClick={() => wrap(() => api.deleteListing(pid, s.listing.id))}>✕</td>
               </tr>
             ))}
-            {!rows.length && <tr><td colSpan={10} className="muted">No listings yet — add some above.</td></tr>}
+            {!rows.length && <tr><td colSpan={11} className="muted">No listings yet — add some above.</td></tr>}
           </tbody>
         </table>
       </div>

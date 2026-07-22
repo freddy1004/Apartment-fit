@@ -10,6 +10,7 @@ from .config import settings
 from .db import init_db
 from .routers import (
     analysis_router,
+    auth_router,
     criteria_router,
     listings_router,
     profiles_router,
@@ -32,6 +33,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router.router)
 app.include_router(criteria_router.router)
 app.include_router(profiles_router.router)
 app.include_router(analysis_router.router)

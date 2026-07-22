@@ -27,7 +27,10 @@ export function sortListings(
       typeof av === "number" && typeof bv === "number"
         ? av - bv
         : String(av).localeCompare(String(bv));
-    return asc ? cmp : -cmp;
+    const primary = asc ? cmp : -cmp;
+    if (primary !== 0) return primary;
+    // Confidence-aware tie-break: more-confident listings rank higher.
+    return (b.confidence ?? 0) - (a.confidence ?? 0);
   });
 }
 

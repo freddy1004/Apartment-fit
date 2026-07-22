@@ -90,6 +90,23 @@ export function TierSummary({ run }: { run: RunResult | null }) {
   );
 }
 
+export function SnapshotHistory({ snapshots }: {
+  snapshots: { id: number; signature: string; created_at: string; zone_count: number }[];
+}) {
+  if (!snapshots?.length) return null;
+  return (
+    <div className="card">
+      <div className="section-title">Run history ({snapshots.length})</div>
+      {snapshots.slice(0, 6).map((s) => (
+        <div key={s.id} style={{ fontSize: 11, display: "flex", justifyContent: "space-between" }} className="muted">
+          <span>{new Date(s.created_at).toLocaleString()}</span>
+          <span>sig {s.signature.slice(0, 6)} · {s.zone_count}z</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ZoneList({ zones }: { zones: Zone[] }) {
   if (!zones.length) return null;
   return (

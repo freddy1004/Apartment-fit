@@ -3,9 +3,11 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import AmbiguityHelper from "../components/AmbiguityHelper";
 import CriteriaEditor from "../components/CriteriaEditor";
+import GeoPanel from "../components/GeoPanel";
 import ListingsPanel from "../components/ListingsPanel";
+import type { LayerInfo } from "../components/MapView";
 import {
-  CellDetailPanel, EliminationPanel, Legend, TierSummary, ZoneList,
+  CellDetailPanel, EliminationPanel, Legend, SnapshotHistory, TierSummary, ZoneList,
 } from "../components/Panels";
 import { api } from "../lib/api";
 import type { CellDetail, Profile, RunResult, ScoredListing, Zone } from "../lib/types";
@@ -24,7 +26,11 @@ export default function Home() {
   const [zones, setZones] = useState<Zone[]>([]);
   const [detail, setDetail] = useState<CellDetail | null>(null);
   const [scored, setScored] = useState<ScoredListing[]>([]);
+  const [layers, setLayers] = useState<LayerInfo[]>([]);
+  const [snapshots, setSnapshots] = useState<any[]>([]);
   const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({});
+  const [drawMode, setDrawMode] = useState<"inclusion" | "exclusion" | null>(null);
+  const [vertices, setVertices] = useState<[number, number][]>([]);
   const [tab, setTab] = useState<Tab>("analysis");
   const [busy, setBusy] = useState(false);
   const [providerMode, setProviderMode] = useState<string>("");
@@ -53,10 +59,11 @@ export default function Home() {
     try {
       const r = await api.runAnalysis(pid);
       setRun(r);
-      const [gj, po, zn, sc] = await Promise.all([
-        api.geojson(pid), api.pois(pid), api.zones(pid), api.scoredListings(pid).catch(() => []),
+      const [gj, po, zn, ly, sn, sc] = await Promise.all([
+        api.geojson(pid), api.pois(pid), api.zones(pid), api.layers(pid).catch(() => []),
+        api.snapshots(pid).catch(() => []), api.scoredListings(pid).catch(() => []),
       ]);
-      setGeojson(gj); setPois(po); setZones(zn); setScored(sc);
+      setGeojson(gj); setPois(po); setZones(zn); setLayers(ly); setSnapshots(sn); setScored(sc);
     } finally { setBusy(false); }
   }, []);
 
@@ -100,6 +107,27 @@ export default function Home() {
 
   const reloadListings = async () => {
     if (profile) setScored(await api.scoredListings(profile.id).catch(() => []));
+  };
+
+  // --- polygon drawing ---
+  const startDraw = (mode: "inclusion" | "exclusion") => { setDrawMode(mode); setVertices([]); };
+  const onDrawClick = (lng: number, lat: number) => setVertices((v) => [...v, [lng, lat]]);
+  const cancelDraw = () => { setDrawMode(null); setVertices([]); };
+  const finishDraw = async () => {
+    if (!profile || !drawMode || vertices.length < 3) return;
+    const ring = [...vertices, vertices[0]];
+    await api.addBoundary(profile.id, ring, drawMode, true);
+    cancelDraw();
+    await analyze(profile.id);
+    const p = await api.getProfile(profile.id);
+    setProfile(p); setSaved(JSON.parse(JSON.stringify(p)));
+  };
+
+  const reloadProfileAndAnalyze = async () => {
+    if (!profile) return;
+    const p = await api.getProfile(profile.id);
+    setProfile(p); setSaved(JSON.parse(JSON.stringify(p)));
+    await analyze(profile.id);
   };
 
   return (
@@ -154,6 +182,11 @@ export default function Home() {
             <Legend activeLayers={activeLayers} toggle={toggleLayer} pois={pois} />
             <EliminationPanel run={run} />
             <ZoneList zones={zones} />
+            <SnapshotHistory snapshots={snapshots} />
+            <GeoPanel profileId={profile.id} layers={layers} activeLayers={activeLayers}
+              toggleLayer={toggleLayer} drawMode={drawMode} vertexCount={vertices.length}
+              onStartDraw={startDraw} onFinishDraw={finishDraw} onCancelDraw={cancelDraw}
+              reload={reloadProfileAndAnalyze} />
             <div className="card">
               <div className="section-title">Export</div>
               <div className="row">
@@ -165,7 +198,8 @@ export default function Home() {
           </div>
           <div className="main">
             <MapView profile={profile} geojson={geojson} pois={pois} zones={zones}
-              activeLayers={activeLayers} onCellClick={onCellClick} />
+              layers={layers} activeLayers={activeLayers} drawMode={drawMode !== null}
+              drawVertices={vertices} onDrawClick={onDrawClick} onCellClick={onCellClick} />
             <CellDetailPanel detail={detail} onClose={() => setDetail(null)} />
           </div>
         </div>

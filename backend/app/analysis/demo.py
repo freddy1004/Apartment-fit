@@ -11,11 +11,13 @@ import uuid
 from ..criteria import builder as B
 from ..criteria.schema import Comparator, Profile
 from ..providers.fixture import load_fixture
+from .layers import seattle_layers
 
 
 def seattle_demo_profile() -> Profile:
     fx = load_fixture()
     ref = fx["downtown_reference"]
+    bbox = fx["default_bbox"]
     return Profile(
         id="demo-seattle",
         name="Seattle — North of Downtown (Demo)",
@@ -36,11 +38,22 @@ def seattle_demo_profile() -> Profile:
             # Area preferences that shape the fit score but never gate:
             B.transit(minutes=10, hard=False, weight=1.0),
             B.parks(minutes=15, hard=False, weight=0.8),
+            # Measurable proxies for otherwise-vague concepts, backed by layers:
+            #   "safe"  -> reported-incident index below a threshold
+            #   "quiet" -> modeled traffic noise below a threshold
+            B.layer_threshold("crime", "crime_index", 55, "index",
+                              "Reported-incident index <= 55 (proxy for 'safe')",
+                              comparator=Comparator.LTE, hard=False, weight=1.2),
+            B.layer_threshold("noise", "noise_db", 60, "dB",
+                              "Traffic noise <= 60 dB (proxy for 'quiet')",
+                              comparator=Comparator.LTE, hard=False, weight=0.8),
+            B.terrain_max(8.0, hard=False, weight=0.4),
             # Listing preferences (soft): applied when a listing supplies the
             # field, neutral/excluded when it doesn't.
             B.rent_max(2200, hard=False, weight=1.5),
             B.min_bedrooms(1, hard=False, weight=0.5),
         ],
+        layers=seattle_layers(bbox),
     )
 
 
