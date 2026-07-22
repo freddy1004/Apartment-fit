@@ -44,7 +44,12 @@ services:
     ports: ["8000:8000"]
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # Baked into the Next.js build so /api proxies to the backend service
+        # (Next resolves rewrite destinations at build time, not runtime).
+        BACKEND_URL: http://backend:8000
     depends_on: [backend]
     environment:
       BACKEND_URL: http://backend:8000
