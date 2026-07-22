@@ -68,14 +68,17 @@ class FixturePoiProvider(PoiProvider):
         data = load_fixture()
         items = data.get(category, [])
         min_lon, min_lat, max_lon, max_lat = bbox
+        # Pad the box: the nearest amenity to a cell near the edge may sit just
+        # outside the analysis bbox (e.g. a grocery one block south of it), so it
+        # must still be a candidate for "nearest".
+        pad = 0.05  # ~5.5 km
         out: list[Poi] = []
         for it in items:
             lat, lon = it["lat"], it["lon"]
-            if min_lat <= lat <= max_lat and min_lon <= lon <= max_lon:
+            if (min_lat - pad) <= lat <= (max_lat + pad) and (min_lon - pad) <= lon <= (max_lon + pad):
                 out.append(Poi(lat=lat, lon=lon, name=it["name"],
                                category=category, source=self.name))
-        # Include just-outside POIs too (nearest amenity may be past the edge).
-        if not out:
+        if not out:  # fall back to the full set rather than returning nothing
             for it in items:
                 out.append(Poi(lat=it["lat"], lon=it["lon"], name=it["name"],
                                category=category, source=self.name))
