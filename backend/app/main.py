@@ -79,9 +79,16 @@ app.include_router(listings_router.router)
 
 @app.get("/api/health")
 def health():
+    from .providers.registry import get_providers
+    sources = {}
+    try:
+        sources = get_providers(settings.provider_mode).status()
+    except Exception:
+        pass
     return {
         "status": "ok",
         "app": settings.app_name,
         "version": settings.version,
         "provider_mode": settings.provider_mode,
+        "sources": sources,   # which live/offline source each capability uses
     }

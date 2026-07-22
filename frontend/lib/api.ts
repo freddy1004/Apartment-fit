@@ -28,7 +28,9 @@ async function j<T>(res: Response): Promise<T> {
 const H = { "Content-Type": "application/json" };
 
 export const api = {
-  health: () => f("/api/health").then(j<{ status: string; provider_mode: string }>),
+  health: () => f("/api/health").then(
+    j<{ status: string; provider_mode: string; sources?: { routing: string; geocoding: string; pois: string } }>,
+  ),
 
   listProfiles: () => f("/api/profiles").then(j<Profile[]>),
   seedDemo: () => f("/api/profiles/seed-demo", { method: "POST" }).then(j<Profile>),

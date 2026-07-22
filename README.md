@@ -29,11 +29,16 @@ score and every failure.
 
 ---
 
-## Quick start (offline, no API keys)
+## Quick start (no API keys)
 
-The default `fixture` provider mode uses bundled open-data fixtures and network-
-approximated (straight-line, clearly labeled) travel times, so the whole product
-runs with `docker compose up` and no external services.
+The default `auto` provider mode uses each **live** OpenStreetMap service that is
+reachable and falls back to bundled offline data otherwise. With a plain
+`docker compose up` that means **live points-of-interest from the public Overpass
+API** (complete, current grocery/park/transit data) while routing and geocoding
+use offline estimates — because OSRM/Nominatim only run if you start the `osm`
+profile. No keys required. `/api/health` reports which source each capability is
+using; the UI badge shows "live POIs (Overpass)" when live data is active. Set
+`PROVIDER_MODE=fixture` to force fully-offline/deterministic behavior.
 
 ```bash
 cp .env.example .env
@@ -41,6 +46,10 @@ docker compose up --build
 # Frontend:  http://localhost:3000
 # API docs:  http://localhost:8000/docs
 ```
+
+> Offline? No internet, or Overpass unreachable? The health probe fails fast and
+> everything transparently falls back to the bundled Seattle data — the app never
+> hard-fails.
 
 In the UI: **Seed Seattle demo** → the map fills with fit-scored grid cells →
 adjust thresholds/weights → open **Listings** to add & score apartments.
@@ -169,7 +178,9 @@ results cached.
 
 ## Enabling real OSM providers (optional)
 
-`PROVIDER_MODE=fixture` (default) needs nothing. To use real self-hosted OSM
+`PROVIDER_MODE=auto` (default) already uses the live public **Overpass** API for
+POIs and needs nothing. `PROVIDER_MODE=fixture` forces fully-offline data. To add
+real self-hosted OSM **routing/geocoding**
 routing/geocoding:
 
 1. **OSRM** — download a region extract and prepare a graph into `./osm-data`:
@@ -197,7 +208,9 @@ the app never hard-fails; fixture/straight-line results are labeled in the UI.
 
 ## Optional external credentials
 
-**None are required.** Everything runs offline on bundled fixtures.
+**None are required.** In the default `auto` mode POIs come from the public
+Overpass API (no key); everything else runs offline, and it all falls back to
+bundled data when offline.
 
 | Capability | Default (no key) | Optional upgrade |
 |-----------|------------------|------------------|

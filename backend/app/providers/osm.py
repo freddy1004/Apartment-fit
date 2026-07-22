@@ -97,6 +97,15 @@ class NominatimGeocodingProvider(GeocodingProvider):
             source=self.name,
         )
 
+    def healthy(self) -> bool:
+        try:
+            base = os.getenv("NOMINATIM_URL", "http://nominatim:8080")
+            r = httpx.get(f"{base}/search", params={"q": "Seattle", "format": "jsonv2", "limit": 1},
+                          headers={"User-Agent": "apartment-fit/0.1"}, timeout=3)
+            return r.status_code == 200
+        except Exception:
+            return False
+
 
 # OSM tag filters per amenity category for Overpass.
 _OVERPASS_FILTER = {
@@ -131,3 +140,13 @@ class OverpassPoiProvider(PoiProvider):
             out.append(Poi(lat=lat, lon=lon, name=name, category=category,
                            source=self.name, tags=el.get("tags")))
         return out
+
+    def healthy(self) -> bool:
+        try:
+            base = os.getenv("OVERPASS_URL", "https://overpass-api.de/api/interpreter")
+            q = ('[out:json][timeout:8];node["shop"="supermarket"]'
+                 '(47.60,-122.34,47.61,-122.33);out 1;')
+            r = httpx.post(base, data={"data": q}, timeout=8)
+            return r.status_code == 200
+        except Exception:
+            return False

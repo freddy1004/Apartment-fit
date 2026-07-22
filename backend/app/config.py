@@ -7,7 +7,9 @@ import os
 class Settings:
     # SQLite by default (works everywhere, incl. tests); Postgres/PostGIS in Docker.
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./apartment_fit.db")
-    provider_mode: str = os.getenv("PROVIDER_MODE", "fixture")  # fixture | osm | auto
+    # auto = live OSM services where reachable (Overpass POIs by default), else
+    # bundled offline data. fixture = always offline. osm = force live services.
+    provider_mode: str = os.getenv("PROVIDER_MODE", "auto")  # auto | fixture | osm
     cors_origins: list[str] = os.getenv(
         "CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
     ).split(",")

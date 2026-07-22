@@ -37,7 +37,10 @@ export default function Home() {
   const dirty = !!profile && !!saved && JSON.stringify(profile) !== JSON.stringify(saved);
 
   useEffect(() => {
-    api.health().then((h) => setProviderMode(h.provider_mode)).catch(() => {});
+    api.health().then((h) => {
+      const poi = h.sources?.pois;
+      setProviderMode(poi === "overpass" ? "live POIs (Overpass)" : `${h.provider_mode} · offline data`);
+    }).catch(() => {});
     refreshProfiles();
   }, []);
 
