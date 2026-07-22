@@ -2,15 +2,16 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import AmbiguityHelper from "../components/AmbiguityHelper";
+import CriteriaBuilder from "../components/CriteriaBuilder";
 import CriteriaEditor from "../components/CriteriaEditor";
 import GeoPanel from "../components/GeoPanel";
 import ListingsPanel from "../components/ListingsPanel";
 import type { LayerInfo } from "../components/MapView";
 import {
-  CellDetailPanel, EliminationPanel, Legend, SnapshotHistory, TierSummary, ZoneList,
+  CellDetailPanel, EliminationPanel, Legend, TierSummary,
 } from "../components/Panels";
 import { api } from "../lib/api";
-import type { CellDetail, Profile, RunResult, ScoredListing, Zone } from "../lib/types";
+import type { CellDetail, Profile, RunResult, ScoredListing } from "../lib/types";
 
 const MapView = dynamic(() => import("../components/MapView"), { ssr: false });
 
@@ -23,11 +24,9 @@ export default function Home() {
   const [run, setRun] = useState<RunResult | null>(null);
   const [geojson, setGeojson] = useState<any | null>(null);
   const [pois, setPois] = useState<Record<string, any[]>>({});
-  const [zones, setZones] = useState<Zone[]>([]);
   const [detail, setDetail] = useState<CellDetail | null>(null);
   const [scored, setScored] = useState<ScoredListing[]>([]);
   const [layers, setLayers] = useState<LayerInfo[]>([]);
-  const [snapshots, setSnapshots] = useState<any[]>([]);
   const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({});
   const [drawMode, setDrawMode] = useState<"inclusion" | "exclusion" | null>(null);
   const [vertices, setVertices] = useState<[number, number][]>([]);
@@ -59,11 +58,11 @@ export default function Home() {
     try {
       const r = await api.runAnalysis(pid);
       setRun(r);
-      const [gj, po, zn, ly, sn, sc] = await Promise.all([
-        api.geojson(pid), api.pois(pid), api.zones(pid), api.layers(pid).catch(() => []),
-        api.snapshots(pid).catch(() => []), api.scoredListings(pid).catch(() => []),
+      const [gj, po, ly, sc] = await Promise.all([
+        api.geojson(pid), api.pois(pid), api.layers(pid).catch(() => []),
+        api.scoredListings(pid).catch(() => []),
       ]);
-      setGeojson(gj); setPois(po); setZones(zn); setLayers(ly); setSnapshots(sn); setScored(sc);
+      setGeojson(gj); setPois(po); setLayers(ly); setScored(sc);
     } finally { setBusy(false); }
   }, []);
 
@@ -176,17 +175,14 @@ export default function Home() {
       ) : tab === "listings" ? (
         <div className="layout"><ListingsPanel profile={profile} scored={scored} reload={reloadListings} /></div>
       ) : tab === "builder" ? (
-        <div className="layout"><div style={{ padding: 20, maxWidth: 720 }}>
+        <div className="layout"><div style={{ padding: 20, maxWidth: 720, overflowY: "auto" }}>
+          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+            Define the measurable criteria for your search here. Each is either a <strong>hard requirement</strong>
+            {" "}(pass/fail gate) or a weighted <strong>preference</strong> — preferences never rescue a failed hard
+            requirement. Tune thresholds later on the Area analysis tab.
+          </p>
+          <CriteriaBuilder profile={profile} reload={reloadProfileAndAnalyze} />
           <AmbiguityHelper />
-          <div className="card">
-            <div className="section-title">About</div>
-            <p className="muted" style={{ fontSize: 13 }}>
-              The criteria builder flags vague concepts and suggests measurable alternatives. Configure the
-              actual thresholds and weights in the Area analysis tab’s criteria editor. Each criterion is a
-              hard requirement (pass/fail gate) or a weighted preference — preferences never rescue a failed
-              hard requirement.
-            </p>
-          </div>
         </div></div>
       ) : (
         <div className="layout">
@@ -194,8 +190,6 @@ export default function Home() {
             <TierSummary run={run} />
             <Legend activeLayers={activeLayers} toggle={toggleLayer} pois={pois} />
             <EliminationPanel run={run} />
-            <ZoneList zones={zones} />
-            <SnapshotHistory snapshots={snapshots} />
             <GeoPanel profileId={profile.id} layers={layers} activeLayers={activeLayers}
               toggleLayer={toggleLayer} drawMode={drawMode} vertexCount={vertices.length}
               onStartDraw={startDraw} onFinishDraw={finishDraw} onCancelDraw={cancelDraw}
@@ -210,7 +204,7 @@ export default function Home() {
             <CriteriaEditor profile={profile} onChange={setProfile} onSave={saveAndRerun} dirty={dirty} />
           </div>
           <div className="main">
-            <MapView profile={profile} geojson={geojson} pois={pois} zones={zones}
+            <MapView profile={profile} geojson={geojson} pois={pois}
               layers={layers} activeLayers={activeLayers} drawMode={drawMode !== null}
               drawVertices={vertices} onDrawClick={onDrawClick} onCellClick={onCellClick} />
             <CellDetailPanel detail={detail} onClose={() => setDetail(null)} />

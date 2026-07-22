@@ -27,12 +27,6 @@ export function Legend({
             {TIER_LABELS[t]}
           </label>
         ))}
-        <label className="item" style={{ cursor: "pointer" }}>
-          <input type="checkbox" style={{ width: "auto" }}
-            checked={activeLayers["zones"] !== false} onChange={() => toggle("zones")} />
-          <span className="swatch" style={{ background: "transparent", borderColor: "#4da3ff" }} />
-          Search zones
-        </label>
         {Object.keys(pois).map((cat) => (
           <label className="item" key={cat} style={{ cursor: "pointer" }}>
             <input type="checkbox" style={{ width: "auto" }}

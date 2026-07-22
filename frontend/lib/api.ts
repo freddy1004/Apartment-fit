@@ -73,6 +73,10 @@ export const api = {
     f(`/api/profiles/${pid}/criteria/layer`, { method: "POST", headers: H, body: JSON.stringify(body) }).then(
       j<any>,
     ),
+  addCriterion: (pid: string, spec: any) =>
+    f(`/api/profiles/${pid}/criteria`, { method: "POST", headers: H, body: JSON.stringify(spec) }).then(
+      j<any>,
+    ),
   deleteCriterion: (pid: string, cid: string) =>
     f(`/api/profiles/${pid}/criteria/${cid}`, { method: "DELETE" }).then(j<any>),
 

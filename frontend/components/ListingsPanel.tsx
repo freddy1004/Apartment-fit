@@ -18,6 +18,7 @@ export default function ListingsPanel({
   const [compare, setCompare] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [matchMsg, setMatchMsg] = useState("");
+  const [showHelp, setShowHelp] = useState(false);
 
   // add-forms state
   const [address, setAddress] = useState("");
@@ -126,20 +127,39 @@ export default function ListingsPanel({
             Run alert
           </button>
           <a style={{ flex: "0 0 auto" }} href={api.listingsCsvUrl(pid)}><button className="small">Export CSV</button></a>
+          <button className="small" style={{ flex: "0 0 auto" }} onClick={() => setShowHelp((v) => !v)}>
+            {showHelp ? "Hide" : "What do the columns mean?"}
+          </button>
         </div>
+        {showHelp && (
+          <div className="card" style={{ background: "var(--panel)", fontSize: 12 }}>
+            <div className="section-title">Ranking columns</div>
+            <ul style={{ margin: "0 0 0 16px", lineHeight: 1.7 }}>
+              <li><strong>● (dot)</strong> — overall fit tier: <span style={{ color: TIER_COLORS.strong_fit }}>strong</span>, <span style={{ color: TIER_COLORS.qualifying }}>qualifying</span>, <span style={{ color: TIER_COLORS.borderline }}>borderline</span>, <span style={{ color: TIER_COLORS.ineligible }}>ineligible</span>.</li>
+              <li><strong>Address</strong> — the listing’s location (geocoded).</li>
+              <li><strong>Rent / Beds</strong> — the listing’s monthly rent and bedroom count.</li>
+              <li><strong>Area</strong> — 0–100 score for how well the <em>location</em> fits your area criteria (commute, groceries, etc.). Shows <strong>✗</strong> if it fails a hard area requirement.</li>
+              <li><strong>Apt</strong> — 0–100 score for how well the <em>apartment itself</em> fits your listing criteria (rent, beds…). <strong>✗</strong> if it fails a hard listing requirement.</li>
+              <li><strong>Combined</strong> — overall 0–100 fit (the average of Area and Apt). <strong>0</strong> means it failed at least one hard requirement, so it’s ineligible.</li>
+              <li><strong>conf</strong> — confidence (0–1) in the measurements; lower when data was missing or a straight-line estimate was used.</li>
+              <li><strong>★</strong> — click to favorite. <strong>cmp</strong> — tick 2+ rows to compare side-by-side below. <strong>✕</strong> — delete.</li>
+            </ul>
+            <div className="muted" style={{ marginTop: 6 }}>Click any column header to sort by it (ties break by confidence).</div>
+          </div>
+        )}
         {matchMsg && <div className="explain pass" style={{ marginBottom: 8 }}>🔔 {matchMsg}</div>}
         <table>
           <thead>
             <tr>
-              <th></th>
-              <th onClick={() => sort("address")}>Address</th>
-              <th onClick={() => sort("rent")}>Rent</th>
-              <th onClick={() => sort("bedrooms")}>Beds</th>
-              <th onClick={() => sort("area")}>Area</th>
-              <th onClick={() => sort("listing")}>Apt</th>
-              <th onClick={() => sort("combined_fit")}>Combined</th>
-              <th title="confidence">conf</th>
-              <th>★</th><th>cmp</th><th></th>
+              <th title="Overall fit tier">●</th>
+              <th onClick={() => sort("address")} title="Listing location (click to sort)">Address</th>
+              <th onClick={() => sort("rent")} title="Monthly rent (click to sort)">Rent</th>
+              <th onClick={() => sort("bedrooms")} title="Bedrooms (click to sort)">Beds</th>
+              <th onClick={() => sort("area")} title="Location fit 0–100, or ✗ if it fails a hard area rule">Area</th>
+              <th onClick={() => sort("listing")} title="Apartment fit 0–100, or ✗ if it fails a hard listing rule">Apt</th>
+              <th onClick={() => sort("combined_fit")} title="Overall fit 0–100 (avg of Area & Apt); 0 = ineligible">Combined</th>
+              <th title="Confidence in the measurements (0–1)">conf</th>
+              <th title="Favorite">★</th><th title="Select to compare">cmp</th><th title="Delete"></th>
             </tr>
           </thead>
           <tbody>

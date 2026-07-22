@@ -26,7 +26,7 @@ export default function CriteriaEditor({ profile, onChange, onSave, dirty }: Pro
         <span className={`pill ${c.kind === "hard" ? "hard" : "pref"}`}>{c.kind}</span>
       </div>
       <div className="grid2" style={{ marginTop: 6 }}>
-        {c.threshold != null && c.method !== "direction" && (
+        {c.threshold != null && c.method !== "direction" && c.method !== "boolean" && (
           <div>
             <label>Threshold ({c.units})</label>
             <input
@@ -45,37 +45,26 @@ export default function CriteriaEditor({ profile, onChange, onSave, dirty }: Pro
           />
         </div>
       </div>
-      <div className="row" style={{ marginTop: 6 }}>
-        <label style={{ margin: 0, flex: "0 0 auto" }}>
-          <input
-            type="checkbox" style={{ width: "auto", marginRight: 6 }}
-            checked={c.kind === "hard"}
-            onChange={(e) => update(c.id, { kind: e.target.checked ? "hard" : "preference" })}
-          />
-          Hard requirement
-        </label>
-        <label style={{ margin: 0, flex: "0 0 auto" }}>
-          <input
-            type="checkbox" style={{ width: "auto", marginRight: 6 }}
-            checked={c.enabled}
-            onChange={(e) => update(c.id, { enabled: e.target.checked })}
-          />
-          Enabled
-        </label>
-      </div>
     </div>
   );
 
   return (
     <div>
       <div className="row" style={{ marginBottom: 8 }}>
-        <div className="section-title" style={{ margin: 0 }}>Criteria</div>
+        <div className="section-title" style={{ margin: 0 }}>Adjust thresholds</div>
         <button className={dirty ? "primary" : ""} onClick={onSave} disabled={!dirty}
           style={{ flex: "0 0 auto" }}>
           {dirty ? "Save & re-run" : "Saved"}
         </button>
       </div>
-      <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>Area criteria</div>
+      <div className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
+        These are the criteria you defined in the Criteria builder. Tune their thresholds and
+        weights here; add or remove criteria on the Criteria builder tab.
+      </div>
+      {profile.criteria.length === 0 && (
+        <div className="muted">No criteria yet — define some on the Criteria builder tab.</div>
+      )}
+      {area.length > 0 && <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>Area criteria</div>}
       {area.map(renderCrit)}
       {listing.length > 0 && (
         <>

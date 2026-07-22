@@ -8,9 +8,23 @@ from sqlalchemy.orm import Session
 from .. import store
 from ..analysis.demo import new_profile_from, seattle_demo_profile
 from ..auth import Principal, current_user
+from ..config import settings
 from ..criteria import builder as B
-from ..criteria.schema import Comparator, Layer, Profile
+from ..criteria.schema import (
+    Comparator,
+    Criterion,
+    CriterionType,
+    Destination,
+    Kind,
+    Layer,
+    Method,
+    MissingDataBehavior,
+    Mode,
+    Profile,
+    Scope,
+)
 from ..db import get_session
+from ..providers.registry import get_providers
 
 router = APIRouter(prefix="/api/profiles", tags=["profiles"])
 
@@ -122,6 +136,132 @@ def import_layer(profile_id: str, body: LayerImportIn, db: Session = Depends(get
     profile.layers.append(layer)
     _save_and_refresh(db, profile)
     return {"layer_id": lid, "feature_count": len(body.geojson.get("features", []))}
+
+
+_AMENITY_TYPE = {
+    "supermarket": CriterionType.GROCERIES,
+    "park": CriterionType.PARKS,
+    "transit_stop": CriterionType.TRANSIT,
+    "freeway_ramp": CriterionType.FREEWAY_ACCESS,
+}
+_LISTING_NUMERIC = {
+    "rent": (CriterionType.RENT, Comparator.LTE, "usd_per_month"),
+    "fees": (CriterionType.FEES, Comparator.LTE, "usd"),
+    "bedrooms": (CriterionType.BEDROOMS, Comparator.GTE, "rooms"),
+    "bathrooms": (CriterionType.BATHROOMS, Comparator.GTE, "rooms"),
+    "size": (CriterionType.SIZE, Comparator.GTE, "sqft"),
+    "lease_length": (CriterionType.LEASE_LENGTH, Comparator.GTE, "months"),
+}
+_LISTING_BOOL = {
+    "parking": CriterionType.PARKING,
+    "laundry": CriterionType.LAUNDRY,
+    "pets": CriterionType.PETS,
+}
+
+
+class NewCriterionIn(BaseModel):
+    scope: str                      # "area" | "listing"
+    kind: str = "preference"        # "hard" | "preference"
+    weight: float = 1.0
+    label: str | None = None
+    # --- area (travel to a destination or amenity) ---
+    source: str | None = None       # "amenity" | "place"
+    amenity_type: str | None = None  # supermarket | park | transit_stop | freeway_ramp
+    dest_address: str | None = None  # geocoded server-side to a point
+    dest_lat: float | None = None
+    dest_lon: float | None = None
+    mode: str = "walk"              # walk | bike | drive | transit
+    measure: str = "time"          # "time" (minutes) | "distance" (miles)
+    threshold: float | None = None
+    # --- listing ---
+    field: str | None = None        # rent | bedrooms | ... | parking | laundry | pets
+
+
+@router.post("/{profile_id}/criteria")
+def add_criterion(profile_id: str, body: NewCriterionIn, db: Session = Depends(get_session)):
+    """Define a brand-new criterion (area travel/amenity, or a listing field)."""
+    profile = store.get_profile(db, profile_id)
+    if not profile:
+        raise HTTPException(404, "profile not found")
+    hard = body.kind == "hard"
+    missing = MissingDataBehavior.FAIL if hard else MissingDataBehavior.NEUTRAL
+    resolved = None
+
+    if body.scope == "area":
+        units = "miles" if body.measure == "distance" else "minutes"
+        try:
+            mode = Mode(body.mode)
+        except ValueError:
+            raise HTTPException(400, f"invalid mode '{body.mode}'")
+
+        if body.source == "amenity" or body.amenity_type:
+            if not body.amenity_type:
+                raise HTTPException(400, "amenity_type required for an amenity criterion")
+            ctype = _AMENITY_TYPE.get(body.amenity_type, CriterionType.AMENITIES)
+            dest = Destination(label=body.amenity_type.replace("_", " "),
+                               amenity_type=body.amenity_type)
+            method = Method.POI_DISTANCE
+            dest_desc = dest.label
+        else:  # a specific place
+            lat, lon = body.dest_lat, body.dest_lon
+            place_label = body.dest_address or "place"
+            if lat is None or lon is None:
+                if not body.dest_address:
+                    raise HTTPException(400, "dest_address or dest_lat/lon required")
+                geo = get_providers(settings.provider_mode).geocode(body.dest_address)
+                if not geo:
+                    raise HTTPException(400, f"could not geocode '{body.dest_address}'")
+                lat, lon, place_label = geo.lat, geo.lon, geo.display_name
+                resolved = {"lat": geo.lat, "lon": geo.lon,
+                            "display_name": geo.display_name, "confidence": geo.confidence}
+            ctype = CriterionType.COMMUTE
+            dest = Destination(label=place_label, lat=lat, lon=lon)
+            method = Method.ROUTE
+            dest_desc = place_label
+
+        if body.threshold is None:
+            raise HTTPException(400, "threshold required")
+        label = body.label or (f"{body.mode.title()} <= {body.threshold:g} {units} to {dest_desc}")
+        crit = Criterion(
+            id=B._new_id(), type=ctype, scope=Scope.AREA,
+            kind=Kind.HARD if hard else Kind.PREFERENCE, label=label,
+            threshold=body.threshold, units=units, comparator=Comparator.LTE,
+            weight=body.weight, mode=mode, method=method, destination=dest,
+            missing_data=missing,
+        )
+
+    elif body.scope == "listing":
+        if not body.field:
+            raise HTTPException(400, "field required for a listing criterion")
+        if body.field in _LISTING_BOOL:
+            ctype = _LISTING_BOOL[body.field]
+            label = body.label or f"{body.field.title()} available"
+            crit = Criterion(
+                id=B._new_id(), type=ctype, scope=Scope.LISTING,
+                kind=Kind.HARD if hard else Kind.PREFERENCE, label=label,
+                comparator=Comparator.TRUE, weight=body.weight, method=Method.BOOLEAN,
+                units="bool", missing_data=missing,
+            )
+        elif body.field in _LISTING_NUMERIC:
+            ctype, comp, units = _LISTING_NUMERIC[body.field]
+            if body.threshold is None:
+                raise HTTPException(400, "threshold required")
+            sign = "<=" if comp == Comparator.LTE else ">="
+            label = body.label or f"{body.field.title()} {sign} {body.threshold:g} {units}"
+            crit = Criterion(
+                id=B._new_id(), type=ctype, scope=Scope.LISTING,
+                kind=Kind.HARD if hard else Kind.PREFERENCE, label=label,
+                threshold=body.threshold, units=units, comparator=comp,
+                weight=body.weight, method=Method.NUMERIC, missing_data=missing,
+            )
+        else:
+            raise HTTPException(400, f"unknown listing field '{body.field}'")
+    else:
+        raise HTTPException(400, "scope must be 'area' or 'listing'")
+
+    profile.criteria.append(crit)
+    _save_and_refresh(db, profile)
+    return {**crit.model_dump(mode="json"), "resolved_destination": resolved}
 
 
 class BoundaryIn(BaseModel):

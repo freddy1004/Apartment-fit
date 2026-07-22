@@ -2,7 +2,7 @@
 import maplibregl from "maplibre-gl";
 import { useEffect, useRef } from "react";
 import { osmRasterStyle } from "../lib/mapStyle";
-import { TIER_COLORS, type Profile, type Zone } from "../lib/types";
+import { TIER_COLORS, type Profile } from "../lib/types";
 
 export interface LayerInfo {
   id: string;
@@ -15,7 +15,6 @@ interface Props {
   profile: Profile;
   geojson: any | null;
   pois: Record<string, any[]>;
-  zones: Zone[];
   layers: LayerInfo[];
   activeLayers: Record<string, boolean>;
   drawMode: boolean;
@@ -42,7 +41,7 @@ function colorRamp(layer: LayerInfo): any {
 }
 
 export default function MapView(props: Props) {
-  const { profile, geojson, pois, zones, layers, activeLayers, drawMode, drawVertices, onDrawClick, onCellClick } = props;
+  const { profile, geojson, pois, layers, activeLayers, drawMode, drawVertices, onDrawClick, onCellClick } = props;
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
@@ -74,8 +73,6 @@ export default function MapView(props: Props) {
         },
       });
       map.addLayer({ id: "cells-outline", type: "line", source: "cells", paint: { "line-color": "#0b1017", "line-width": 0.3 } });
-      map.addSource("zones", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-      map.addLayer({ id: "zones-outline", type: "line", source: "zones", paint: { "line-color": "#4da3ff", "line-width": 2, "line-dasharray": [2, 1] } });
       // in-progress drawing
       map.addSource("draw", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addLayer({ id: "draw-fill", type: "fill", source: "draw", paint: { "fill-color": "#f6ad55", "fill-opacity": 0.25 } });
@@ -144,23 +141,6 @@ export default function MapView(props: Props) {
       }
     });
   }, [layers, activeLayers]);
-
-  // zones
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    whenReady(map, () => {
-      const src = map.getSource("zones") as maplibregl.GeoJSONSource | undefined;
-      if (!src) return;
-      src.setData({
-        type: "FeatureCollection",
-        features: (activeLayers["zones"] === false ? [] : zones).map((z) => ({
-          type: "Feature", properties: { zone_id: z.zone_id },
-          geometry: { type: "Polygon", coordinates: [[[z.min_lon, z.min_lat], [z.max_lon, z.min_lat], [z.max_lon, z.max_lat], [z.min_lon, z.max_lat], [z.min_lon, z.min_lat]]] },
-        })),
-      });
-    });
-  }, [zones, activeLayers]);
 
   // draw preview
   useEffect(() => {
