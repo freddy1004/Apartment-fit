@@ -57,10 +57,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.app_name, version=settings.version, lifespan=lifespan)
 
+# Allow any origin: the browser calls the API directly (localhost:3000 ->
+# localhost:8000, Codespaces URLs, etc.). Auth is header-based (bearer tokens),
+# not cookies, so credentials aren't needed and a wildcard origin is safe here.
+_cors_all = settings.cors_origins == ["*"] or "*" in settings.cors_origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
+    allow_origins=["*"] if _cors_all else settings.cors_origins,
+    allow_origin_regex=None if _cors_all else r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_credentials=not _cors_all,
     allow_methods=["*"],
     allow_headers=["*"],
 )

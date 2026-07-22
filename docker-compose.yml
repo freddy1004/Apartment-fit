@@ -34,7 +34,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg2://apartment:apartment@db:5432/apartment_fit
       PROVIDER_MODE: ${PROVIDER_MODE:-fixture}
-      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      # Browser calls the API directly; allow any origin (header-based auth).
+      CORS_ORIGINS: "*"
       # Used only when PROVIDER_MODE=osm/auto:
       OSRM_URL_DRIVE: http://osrm:5000
       OSRM_URL_BIKE: http://osrm:5000
