@@ -130,6 +130,19 @@ export default function Home() {
     await analyze(profile.id);
   };
 
+  const loadIsochrones = async () => {
+    if (!profile) return;
+    const iso = await api.isochrones(profile.id);
+    const isoLayers: LayerInfo[] = iso.surfaces.map((s) => ({
+      id: `iso-${s.criterion_id}`,
+      name: `Isochrone: ${s.label}`,
+      value_property: "band",
+      geojson: s.geojson,
+    }));
+    setLayers((cur) => [...cur.filter((l) => !l.id.startsWith("iso-")), ...isoLayers]);
+    setActiveLayers((s) => ({ ...s, [`layer:${isoLayers[0]?.id}`]: true }));
+  };
+
   return (
     <div className="app">
       <header className="topbar">
@@ -186,7 +199,7 @@ export default function Home() {
             <GeoPanel profileId={profile.id} layers={layers} activeLayers={activeLayers}
               toggleLayer={toggleLayer} drawMode={drawMode} vertexCount={vertices.length}
               onStartDraw={startDraw} onFinishDraw={finishDraw} onCancelDraw={cancelDraw}
-              reload={reloadProfileAndAnalyze} />
+              onLoadIsochrones={loadIsochrones} reload={reloadProfileAndAnalyze} />
             <div className="card">
               <div className="section-title">Export</div>
               <div className="row">

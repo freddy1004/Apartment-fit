@@ -27,3 +27,19 @@ test("pickAdapter matches known hosts", () => {
   assert.strictEqual(P.pickAdapter("redfin.com"), "redfin");
   assert.strictEqual(P.pickAdapter("example.org"), "generic");
 });
+
+test("pickAdapter covers additional Seattle listing sites", () => {
+  assert.strictEqual(P.pickAdapter("hotpads.com"), "hotpads");
+  assert.strictEqual(P.pickAdapter("seattle.craigslist.org"), "craigslist");
+  assert.strictEqual(P.pickAdapter("www.zumper.com"), "zumper");
+  assert.strictEqual(P.pickAdapter("www.padmapper.com"), "padmapper");
+  assert.strictEqual(P.pickAdapter("www.realtor.com"), "realtor");
+});
+
+test("every adapter has the required selector fields", () => {
+  for (const [name, cfg] of Object.entries(P.ADAPTERS)) {
+    assert.ok(Array.isArray(cfg.price), `${name}.price`);
+    assert.ok(Array.isArray(cfg.summary), `${name}.summary`);
+    assert.ok(Array.isArray(cfg.address), `${name}.address`);
+  }
+});

@@ -46,6 +46,15 @@ class ListingRow(Base):
     data: Mapped[dict] = mapped_column(JSON)  # normalized listing dict
 
 
+class AlertStateRow(Base):
+    """Tracks which matching listings a profile has already alerted on."""
+    __tablename__ = "alert_state"
+    profile_id: Mapped[str] = mapped_column(String, primary_key=True)
+    seen_listing_ids: Mapped[list] = mapped_column(JSON, default=list)
+    last_run: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class SnapshotRow(Base):
     """A persisted area-analysis run, keyed by profile + criteria signature."""
     __tablename__ = "analysis_snapshots"

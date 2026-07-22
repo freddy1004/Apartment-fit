@@ -16,7 +16,39 @@ from .scoring import (
     aggregate,
     evaluate_area_criterion,
     evaluate_listing_criterion,
+    measurement_signature,
+    regrade,
 )
+
+# Per-cell measurement cache keyed by (lat, lon, measurement_signature). Lets
+# threshold/weight edits re-grade cached raw measurements instead of recomputing
+# routes/POIs/layer samples. Self-invalidating: geometry/layer changes alter the
+# signature. Bounded to keep memory flat across many profiles.
+_MEASURE_CACHE: dict[tuple, CriterionResult] = {}
+_MEASURE_STATS = {"hits": 0, "misses": 0}
+_MEASURE_CACHE_MAX = 300_000
+
+
+def measurement_cache_stats() -> dict:
+    return dict(_MEASURE_STATS)
+
+
+def reset_measurement_cache() -> None:
+    _MEASURE_CACHE.clear()
+    _MEASURE_STATS["hits"] = _MEASURE_STATS["misses"] = 0
+
+
+def _measured(c, lat, lon, providers, bbox, layers) -> CriterionResult:
+    key = (round(lat, 6), round(lon, 6), measurement_signature(c, layers))
+    base = _MEASURE_CACHE.get(key)
+    if base is not None:
+        _MEASURE_STATS["hits"] += 1
+        return regrade(c, base)
+    base = evaluate_area_criterion(c, lat, lon, providers, bbox, layers)
+    if len(_MEASURE_CACHE) < _MEASURE_CACHE_MAX:
+        _MEASURE_CACHE[key] = base
+    _MEASURE_STATS["misses"] += 1
+    return base
 
 
 @dataclass
@@ -102,7 +134,7 @@ def run_city_analysis(profile: Profile,
 
     for cell in cells:
         results = [
-            evaluate_area_criterion(c, cell.center_lat, cell.center_lon, providers, bbox, layers)
+            _measured(c, cell.center_lat, cell.center_lon, providers, bbox, layers)
             for c in area_criteria
         ]
         score = aggregate(results)

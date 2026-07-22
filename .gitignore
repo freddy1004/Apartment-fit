@@ -3,6 +3,7 @@ backend/.venv/
 __pycache__/
 *.pyc
 backend/apartment_fit.db
+backend/app/data/cache/
 .pytest_cache/
 
 # Node

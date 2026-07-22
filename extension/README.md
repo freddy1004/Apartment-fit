@@ -38,7 +38,21 @@ Open Graph, and visible-text passes. Built-in adapters:
 | Apartments.com | `apartments.com` |
 | Redfin | `redfin.com` |
 | Trulia | `trulia.com` |
+| HotPads | `hotpads.com` |
+| Craigslist (Seattle) | `craigslist.org` |
+| Zumper | `zumper.com` |
+| PadMapper | `padmapper.com` |
+| Realtor.com | `realtor.com` |
 | _fallback_ | `generic` (JSON-LD + meta + visible text) |
+
+## Review UI
+
+The popup is a review surface: after **Extract** it shows each field with a
+🟢 **auto** badge (extracted from the page) or 🟡 **manual** badge (you typed or
+edited it), a per-capture **confidence** meter (how many fields were
+auto-filled), and which **adapter** matched. Editing an auto field flips it to
+manual so you always know what came from the page vs. what you changed before
+sending.
 
 Add a new site by appending a selector config to `ADAPTERS` in `parse.js` — no
 DOM code needed. Selectors only ever read visible fields on the page the user

@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from .. import store
-from ..analysis.engine import run_city_analysis
+from ..analysis.engine import measurement_cache_stats, run_city_analysis
 from ..analysis.exporters import area_results_to_csv, area_results_to_geojson
-from ..analysis.precompute import warm_routes
+from ..analysis.precompute import build_isochrones, warm_routes
 from ..config import settings
 from ..db import get_session
 from ..providers.registry import get_providers
@@ -57,7 +57,19 @@ def precompute(profile_id: str, db: Session = Depends(get_session)):
     if not profile:
         raise HTTPException(404, "profile not found")
     providers = get_providers(settings.provider_mode)
-    return warm_routes(profile, providers)
+    stats = warm_routes(profile, providers)
+    stats["measurement_cache"] = measurement_cache_stats()
+    return stats
+
+
+@router.get("/{profile_id}/isochrones")
+def isochrones(profile_id: str, db: Session = Depends(get_session)):
+    """Per-destination travel-time surfaces (banded isochrone GeoJSON)."""
+    profile = store.get_profile(db, profile_id)
+    if not profile:
+        raise HTTPException(404, "profile not found")
+    providers = get_providers(settings.provider_mode)
+    return build_isochrones(profile, providers)
 
 
 @router.get("/{profile_id}/geojson")

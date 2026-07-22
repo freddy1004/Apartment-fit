@@ -83,20 +83,19 @@ class FixturePoiProvider(PoiProvider):
 
 
 class FixtureTerrainProvider(TerrainProvider):
-    """Deterministic synthetic terrain.
+    """Terrain from real Seattle elevation reference points.
 
-    Real deployments plug in an elevation raster (e.g. SRTM/NED) here; the
-    fixture uses a smooth analytic surface so results are reproducible and
-    testable. Slope is the gradient magnitude of the elevation field, in percent.
+    Elevation is inverse-distance interpolated over real Seattle hill/lowland
+    elevations (``data/seattle_real.ELEVATION_POINTS``); slope is the gradient
+    magnitude over ~100 m, in percent. Real deployments can swap in a live
+    elevation raster (SRTM/NED) via ``open_data.py``; this offline default is
+    grounded in actual topography rather than a synthetic surface.
     """
-    name = "fixture-terrain"
+    name = "seattle-idw-dem"
 
     def _elevation(self, lat: float, lon: float) -> float:
-        # A gentle ridged surface: hills spaced ~0.02deg, amplitude ~60m.
-        return (
-            60.0 * (0.5 + 0.5 * math.sin(lat * 210.0) * math.cos(lon * 190.0))
-            + 20.0 * math.sin(lon * 90.0)
-        )
+        from ..data.seattle_real import elevation_at
+        return elevation_at(lat, lon)
 
     def sample(self, lat: float, lon: float) -> TerrainResult:
         d = 0.0009  # ~100m
@@ -107,8 +106,8 @@ class FixtureTerrainProvider(TerrainProvider):
         run_m = 100.0
         rise = math.hypot(de_lat, de_lon)
         slope_pct = min(60.0, rise / run_m * 100.0)
-        return TerrainResult(slope_pct=slope_pct, elevation_m=e, confidence=0.5,
-                             source=self.name, is_fallback=True)
+        return TerrainResult(slope_pct=slope_pct, elevation_m=e, confidence=0.6,
+                             source=self.name, is_fallback=False)
 
 
 _LATLON_RE = re.compile(r"(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)")

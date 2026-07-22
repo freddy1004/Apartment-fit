@@ -75,8 +75,11 @@ def test_terrain_criterion():
     assert r.units == "percent"
 
 
-def test_noise_layer_near_ramp_is_loud():
-    layer = noise_layer()
-    # I-5 @ NE 45th ramp coordinates from the fixture
-    val, _ = sample_layer_value(-122.3235, 47.6610, layer.features, "noise_db", 48.0)
-    assert val == 72.0
+def test_noise_layer_louder_near_freeway():
+    layer = noise_layer(BBOX)
+    # Near the I-5 corridor (~lon -122.323) vs a quiet spot far from arterials.
+    near, _ = sample_layer_value(-122.323, 47.665, layer.features, "noise_db", 45.0)
+    far, _ = sample_layer_value(-122.288, 47.685, layer.features, "noise_db", 45.0)
+    assert near is not None and far is not None
+    assert near > far          # freeway corridor is louder
+    assert near >= 60          # meaningfully above ambient near I-5

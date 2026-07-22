@@ -1,5 +1,5 @@
 from app.analysis.demo import seattle_demo_profile
-from app.analysis.engine import run_city_analysis
+from app.analysis.engine import reset_measurement_cache, run_city_analysis
 from app.analysis.precompute import warm_routes
 from app.providers.registry import Providers
 
@@ -18,6 +18,7 @@ def test_reruns_reuse_cached_routes_incrementally():
     """Editing a threshold must not recompute routes -- the cache is reused."""
     p = seattle_demo_profile()
     prov = Providers("fixture")
+    reset_measurement_cache()  # force the first run to compute measurements
     run_city_analysis(p, prov)
     after_first = len(prov._route_cache)
     assert after_first > 0

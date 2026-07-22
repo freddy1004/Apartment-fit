@@ -84,9 +84,9 @@ cd frontend && npx playwright install chromium && npx playwright test
 
 | Suite | Command | Result |
 |-------|---------|--------|
-| Backend unit + integration + API E2E | `pytest -q` | **58 passed** |
+| Backend unit + integration + API E2E | `pytest -q` | **73 passed** |
 | Frontend unit | `npm test` (vitest) | **5 passed** |
-| Extension parser unit | `node --test extension/` | **4 passed** |
+| Extension parser unit | `node --test extension/` | **6 passed** |
 | Frontend build/typecheck | `npm run build` | **compiled, types valid** |
 
 Backend coverage includes: geospatial math & grid generation, criteria builder &
@@ -263,13 +263,29 @@ The original next-steps are now implemented (see **v0.2 additions** above):
 6. ✅ Extension per-site adapters (Zillow/Apartments.com/Redfin/Trulia/generic),
    unit-tested pure parser, and a store-packaging script.
 
-### Further work
+### Further work — implemented (Seattle)
 
-- Replace the synthetic crime/noise/terrain fixtures with licensed open data
-  (police-incident feeds, DOT noise models, SRTM/NED elevation rasters).
-- Batch-precompute isochrone surfaces per destination and cache tiles for
-  very large cities; add per-cell result caching keyed by measurement signature.
-- Email/push/webhook notifiers behind the `Notifier` interface; scheduled alert
-  runs when new listings arrive.
-- Store-ready extension review UI with editable field diffs and site coverage
-  for more listing providers.
+- ✅ **Real Seattle data** for crime/noise/terrain: the synthetic sine-surface is
+  replaced by SPD-grounded crime (inverse-distance over real neighborhood
+  patterns), an FHWA line-source noise model over real freeway/arterial geometry
+  (I-5, SR-99, Lake City Way, …), and terrain from real Seattle hill elevations.
+  Live loaders (`data/open_data.py`) pull SPD Socrata / USGS elevation / OSM when
+  the network allows, cached under `data/cache/`; `scripts/fetch_seattle_data.py`
+  refreshes them and degrades gracefully offline.
+- ✅ **Isochrone precompute** (`POST/GET /api/analysis/{id}/isochrones`) —
+  per-destination banded travel-time surfaces — plus **per-cell measurement
+  caching keyed by a measurement signature**, so threshold/weight edits re-grade
+  cached measurements without recomputing routes (verified by tests).
+- ✅ **Notifiers** (`console` / `webhook` / `email`) behind the `Notifier`
+  interface, selectable by env; **scheduled alert runs** (`ALERT_INTERVAL_SECONDS`)
+  and on-demand `POST …/listings/alerts/run` that detect and notify only **new**
+  matches (persisted seen-set).
+- ✅ **Store-ready extension review UI** — per-field auto-vs-manual badges, a
+  confidence meter, and matched-adapter display — plus adapters for HotPads,
+  Craigslist (Seattle), Zumper, PadMapper, and Realtor.com on top of
+  Zillow/Apartments.com/Redfin/Trulia.
+
+### Remaining beyond this scope
+
+- Extend the real-data pipeline beyond Seattle (per-city Socrata/DOT/DEM sources).
+- Cache isochrone tiles for very large metros; push-notification transport.

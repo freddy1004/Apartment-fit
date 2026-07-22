@@ -13,6 +13,7 @@ interface Props {
   onStartDraw: (mode: "inclusion" | "exclusion") => void;
   onFinishDraw: () => void;
   onCancelDraw: () => void;
+  onLoadIsochrones: () => void;
   reload: () => void;
 }
 
@@ -64,6 +65,10 @@ export default function GeoPanel(p: Props) {
           </div>
         </div>
       )}
+
+      <button className="small" style={{ marginTop: 8 }} onClick={p.onLoadIsochrones}>
+        Load travel-time isochrones
+      </button>
 
       {/* Import GeoJSON */}
       <label style={{ marginTop: 8 }}>Import GeoJSON layer (choropleth)</label>

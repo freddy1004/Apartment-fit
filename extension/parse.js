@@ -62,6 +62,37 @@
       summary: ['[data-testid="facts"]', ".facts"],
       address: ["h1"],
     },
+    hotpads: {
+      host: "hotpads.com",
+      price: ['[data-testid="price"]', ".Listing-price", ".price"],
+      summary: [".Listing-facts", ".HdpBanner-facts", ".facts"],
+      address: [".Listing-address", "h1"],
+    },
+    craigslist: {
+      // Seattle: seattle.craigslist.org
+      host: "craigslist.org",
+      price: [".price", ".postingtitletext .price"],
+      summary: [".attrgroup", ".mapAndAttrs"],
+      address: [".postingtitletext", "h1.postingtitle"],
+    },
+    zumper: {
+      host: "zumper.com",
+      price: ['[class*="price"]', ".listing-price"],
+      summary: ['[class*="MediaSummary"]', ".listing-details"],
+      address: ['[class*="address"]', "h1"],
+    },
+    padmapper: {
+      host: "padmapper.com",
+      price: [".Price", '[class*="price"]'],
+      summary: [".Description-details", '[class*="ListingSummary"]'],
+      address: [".FullDescription-address", "h1"],
+    },
+    realtor: {
+      host: "realtor.com",
+      price: ['[data-testid="list-price"]', '[data-label="pc-price"]', ".Price__Component"],
+      summary: ['[data-testid="property-meta"]', ".ldp-key-facts"],
+      address: ['[data-testid="address"]', "h1"],
+    },
     generic: { host: "", price: [], summary: [], address: ["h1"] },
   };
 

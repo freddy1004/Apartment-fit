@@ -7,6 +7,8 @@ matter how strong its preferences** -- preferences can never compensate.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -224,6 +226,46 @@ def _evaluate_terrain(c: Criterion, lat: float, lon: float,
         explanation=f"Local slope {measured:.1f}% {verb} threshold {c.threshold}% "
                     f"(elevation {t.elevation_m:.0f} m).",
         detail={"elevation_m": round(t.elevation_m, 1)},
+    )
+
+
+def measurement_signature(c: Criterion, layers: Optional[dict] = None) -> tuple:
+    """Everything that determines a criterion's *raw measurement* at a point.
+
+    Excludes threshold / weight / kind / tolerance (which only affect grading),
+    so a cached measurement can be re-graded after those change. Includes a hash
+    of geometry and referenced layer data so changing them invalidates the key.
+    """
+    dest = c.destination
+    dsig = (
+        round(dest.lat, 6) if dest and dest.lat is not None else None,
+        round(dest.lon, 6) if dest and dest.lon is not None else None,
+        dest.amenity_type if dest else None,
+    )
+    geo = None
+    if c.geometry:
+        geo = hashlib.sha1(json.dumps(c.geometry, sort_keys=True).encode()).hexdigest()[:12]
+    lyr = None
+    if c.method == Method.LAYER_VALUE and layers and c.layer_id in layers:
+        blob = json.dumps(layers[c.layer_id].features, sort_keys=True).encode()
+        lyr = hashlib.sha1(blob).hexdigest()[:12]
+    return (c.type.value, c.method.value, c.mode.value, c.units, dsig, geo,
+            c.layer_id, c.layer_property, lyr)
+
+
+def regrade(c: Criterion, base: CriterionResult) -> CriterionResult:
+    """Re-apply a criterion's threshold/weight/kind to a cached raw measurement."""
+    if base.missing:
+        return _missing_result(c, "cached measurement missing")
+    measured = base.raw_value if base.raw_value is not None else 0.0
+    passed = _hard_ok(c, measured) if c.kind == Kind.HARD else True
+    pref = _pref_score(c, measured) if c.kind == Kind.PREFERENCE else None
+    return CriterionResult(
+        criterion_id=c.id, label=c.label, kind=c.kind.value, passed=passed,
+        preference_score=pref, raw_value=base.raw_value, units=base.units,
+        threshold=c.threshold, weight=c.weight, confidence=base.confidence,
+        source=base.source, is_fallback=base.is_fallback, missing=False,
+        explanation=base.explanation, detail=base.detail,
     )
 
 

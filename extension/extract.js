@@ -67,5 +67,9 @@
   if (/parking (included|available|garage)|garage parking/i.test(body)) out.parking = true;
   if (/in[- ]unit laundry|washer\/dryer in unit|in unit washer/i.test(body)) out.laundry = true;
 
+  // Record which reviewable fields were auto-detected (for the popup diff view).
+  const reviewable = ["address", "rent", "bedrooms", "bathrooms", "size", "lat", "lon"];
+  out._auto = reviewable.filter((f) => out[f] != null && out[f] !== "");
+  out._confidence = out._auto.length / reviewable.length;
   return out;
 })();

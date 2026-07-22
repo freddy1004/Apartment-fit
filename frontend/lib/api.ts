@@ -43,6 +43,10 @@ export const api = {
     fetch(`/api/analysis/${id}/layers`).then(
       j<{ id: string; name: string; value_property: string | null; geojson: any }[]>,
     ),
+  isochrones: (id: string) =>
+    fetch(`/api/analysis/${id}/isochrones`).then(
+      j<{ bands: number[]; surfaces: { criterion_id: string; label: string; geojson: any }[] }>,
+    ),
 
   addBoundary: (pid: string, geometry: number[][], mode: "inclusion" | "exclusion", hard: boolean) =>
     fetch(`/api/profiles/${pid}/criteria/boundary`, { method: "POST", headers: H, body: JSON.stringify({ geometry: [geometry], mode, hard }) }).then(
@@ -91,6 +95,10 @@ export const api = {
   matches: (pid: string) =>
     fetch(`/api/profiles/${pid}/listings/matches`).then(
       j<{ match_count: number; matches: { listing_id: string; address: string; combined_fit: number; combined_tier: string }[] }>,
+    ),
+  runAlerts: (pid: string) =>
+    fetch(`/api/profiles/${pid}/listings/alerts/run`, { method: "POST" }).then(
+      j<{ total_matches: number; notified: number; new_matches: { address: string }[] }>,
     ),
 
   areaCsvUrl: (id: string) => `/api/analysis/${id}/export.csv`,

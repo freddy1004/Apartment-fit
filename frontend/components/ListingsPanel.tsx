@@ -121,6 +121,10 @@ export default function ListingsPanel({
             onClick={async () => { const r = await api.matches(pid); setMatchMsg(`${r.match_count} listing(s) match all hard requirements${r.matches.length ? ": " + r.matches.map((m) => m.address || m.listing_id).join(", ") : ""}`); }}>
             Saved-search matches
           </button>
+          <button className="small" style={{ flex: "0 0 auto" }}
+            onClick={async () => { const r = await api.runAlerts(pid); setMatchMsg(`Alert run: ${r.notified} new match(es) notified (of ${r.total_matches} total)${r.new_matches.length ? ": " + r.new_matches.map((m) => m.address).join(", ") : ""}`); }}>
+            Run alert
+          </button>
           <a style={{ flex: "0 0 auto" }} href={api.listingsCsvUrl(pid)}><button className="small">Export CSV</button></a>
         </div>
         {matchMsg && <div className="explain pass" style={{ marginBottom: 8 }}>🔔 {matchMsg}</div>}

@@ -177,6 +177,14 @@ def export_csv(profile_id: str, db: Session = Depends(get_session)):
                     headers={"Content-Disposition": f'attachment; filename="{profile_id}-listings.csv"'})
 
 
+@router.post("/alerts/run")
+def run_alerts_now(profile_id: str, db: Session = Depends(get_session)):
+    """Run saved-search alerts once: notify on NEW matches and record them."""
+    from ..alerts import run_profile_alerts
+    _require_profile(db, profile_id)
+    return run_profile_alerts(db, profile_id)
+
+
 @router.get("/matches")
 def matches(profile_id: str, db: Session = Depends(get_session)):
     """Saved-search matches: stored listings passing every hard requirement.
