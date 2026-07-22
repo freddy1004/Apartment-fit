@@ -1,0 +1,74 @@
+# Apartment Fit — local stack.
+#
+# Core (always on):   db (PostgreSQL+PostGIS), backend (FastAPI), frontend (Next.js)
+# Optional profile "osm":  osrm (routing) + nominatim (geocoding) real OSM services.
+#
+# Quick start (offline, uses bundled fixtures):
+#     docker compose up --build
+#     -> frontend http://localhost:3000  backend http://localhost:8000/docs
+#
+# Real self-hosted OSM routing/geocoding (heavier, downloads an OSM extract):
+#     see README "Enabling real OSM providers". Then:
+#     PROVIDER_MODE=osm docker compose --profile osm up --build
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: apartment
+      POSTGRES_PASSWORD: apartment
+      POSTGRES_DB: apartment_fit
+    ports: ["5432:5432"]
+    volumes: ["dbdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apartment -d apartment_fit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://apartment:apartment@db:5432/apartment_fit
+      PROVIDER_MODE: ${PROVIDER_MODE:-fixture}
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      # Used only when PROVIDER_MODE=osm/auto:
+      OSRM_URL_DRIVE: http://osrm:5000
+      OSRM_URL_BIKE: http://osrm:5000
+      OSRM_URL_WALK: http://osrm:5000
+      NOMINATIM_URL: http://nominatim:8080
+      OVERPASS_URL: https://overpass-api.de/api/interpreter
+    ports: ["8000:8000"]
+
+  frontend:
+    build: ./frontend
+    depends_on: [backend]
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports: ["3000:3000"]
+
+  # --- Optional real OSM services (profile: osm) ---------------------------- #
+  osrm:
+    image: osrm/osrm-backend:v5.27.1
+    profiles: ["osm"]
+    # Expects a prepared graph in ./osm-data (see README). Serves whatever
+    # profile was prepared; run one instance per mode for separate profiles.
+    command: osrm-routed --algorithm mld /data/region.osrm
+    volumes: ["./osm-data:/data"]
+    ports: ["5000:5000"]
+
+  nominatim:
+    image: mediagis/nominatim:4.4
+    profiles: ["osm"]
+    environment:
+      PBF_URL: ${NOMINATIM_PBF_URL:-https://download.geofabrik.de/north-america/us/washington-latest.osm.pbf}
+      IMPORT_STYLE: address
+    ports: ["8080:8080"]
+    volumes: ["nominatim-data:/var/lib/postgresql/14/main"]
+
+volumes:
+  dbdata:
+  nominatim-data:

@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { width: 340px; font-family: system-ui, sans-serif; font-size: 13px; margin: 0; padding: 12px; background: #16212e; color: #e6edf3; }
+    h1 { font-size: 14px; margin: 0 0 8px; }
+    label { display: block; color: #93a4b8; font-size: 11px; margin: 6px 0 2px; }
+    .field { position: relative; }
+    .badge { position: absolute; right: 6px; top: 22px; font-size: 9px; padding: 1px 5px; border-radius: 8px; }
+    .badge.auto { background: #12351f; color: #9ae6b4; border: 1px solid #2f6a44; }
+    .badge.manual { background: #33240f; color: #f6d38a; border: 1px solid #6a5320; }
+    input { width: 100%; box-sizing: border-box; padding: 5px 6px; background: #0f1720; color: #e6edf3; border: 1px solid #2b3a4d; border-radius: 5px; }
+    input.auto { border-color: #2f6a44; }
+    input.edited { border-color: #6a5320; }
+    .row { display: flex; gap: 6px; }
+    .row > div { flex: 1; }
+    button { margin-top: 10px; width: 100%; padding: 8px; border: none; border-radius: 6px; background: #4da3ff; color: #04121f; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #1e2b3a; color: #e6edf3; border: 1px solid #2b3a4d; }
+    .cfg { border-top: 1px solid #2b3a4d; margin-top: 10px; padding-top: 8px; }
+    #meta { margin-top: 8px; font-size: 11px; color: #93a4b8; }
+    #bar { height: 5px; border-radius: 3px; background: #0b1017; overflow: hidden; margin-top: 4px; }
+    #barfill { height: 100%; width: 0; background: #4da3ff; transition: width .2s; }
+    #status { margin-top: 8px; font-size: 12px; min-height: 16px; }
+    .ok { color: #9ae6b4; } .err { color: #feb2b2; }
+  </style>
+</head>
+<body>
+  <h1>🏙️ Apartment Fit — capture</h1>
+  <div style="color:#93a4b8;font-size:11px">Review extracted fields (🟢 auto · 🟡 you edited), then send.</div>
+  <button id="extract" class="secondary">Extract from this page</button>
+
+  <div class="field"><label>Address</label><input id="address" data-f="address" /><span class="badge" id="b-address"></span></div>
+  <div class="row">
+    <div class="field"><label>Rent $/mo</label><input id="rent" data-f="rent" /><span class="badge" id="b-rent"></span></div>
+    <div class="field"><label>Beds</label><input id="bedrooms" data-f="bedrooms" /><span class="badge" id="b-bedrooms"></span></div>
+    <div class="field"><label>Baths</label><input id="bathrooms" data-f="bathrooms" /><span class="badge" id="b-bathrooms"></span></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Size sqft</label><input id="size" data-f="size" /><span class="badge" id="b-size"></span></div>
+    <div class="field"><label>Lat</label><input id="lat" data-f="lat" /><span class="badge" id="b-lat"></span></div>
+    <div class="field"><label>Lon</label><input id="lon" data-f="lon" /><span class="badge" id="b-lon"></span></div>
+  </div>
+
+  <div id="meta"></div>
+  <div id="bar"><div id="barfill"></div></div>
+
+  <button id="send">Send to Apartment Fit</button>
+  <div id="status"></div>
+  <div class="cfg">
+    <label>API base URL</label><input id="apiBase" placeholder="http://localhost:8000" />
+    <label>Profile ID</label><input id="profileId" placeholder="demo-seattle" />
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

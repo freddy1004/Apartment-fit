@@ -1,0 +1,19 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+backend/apartment_fit.db
+backend/app/data/cache/
+.pytest_cache/
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+*.log
+
+# Env / data
+.env
+osm-data/
+*.osrm*
+dist/

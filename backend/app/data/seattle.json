@@ -1,0 +1,59 @@
+{
+  "city": "Seattle",
+  "note": "Approximate open-data-style fixtures for offline/demo use. Coordinates are approximate and intended for demonstration, not navigation. Replace with live Nominatim/Overpass providers for production accuracy.",
+  "downtown_reference": {"lat": 47.6062, "lon": -122.3321, "label": "Downtown Seattle (Pike/Pine)"},
+  "default_bbox": [-122.42, 47.60, -122.27, 47.73],
+  "supermarket": [
+    {"lat": 47.6615, "lon": -122.3340, "name": "QFC Wallingford"},
+    {"lat": 47.6512, "lon": -122.3509, "name": "PCC Fremont"},
+    {"lat": 47.6795, "lon": -122.3419, "name": "PCC Green Lake"},
+    {"lat": 47.6636, "lon": -122.2996, "name": "Trader Joe's University Village"},
+    {"lat": 47.6630, "lon": -122.2990, "name": "QFC University Village"},
+    {"lat": 47.6681, "lon": -122.3843, "name": "Fred Meyer Ballard"},
+    {"lat": 47.6760, "lon": -122.3175, "name": "Whole Foods Roosevelt"},
+    {"lat": 47.6800, "lon": -122.2760, "name": "Metropolitan Market Sand Point"},
+    {"lat": 47.6370, "lon": -122.3560, "name": "Safeway Queen Anne"},
+    {"lat": 47.7160, "lon": -122.3210, "name": "Safeway Northgate"},
+    {"lat": 47.6725, "lon": -122.3860, "name": "Safeway Ballard"},
+    {"lat": 47.6980, "lon": -122.3550, "name": "Fred Meyer Greenwood"}
+  ],
+  "freeway_ramp": [
+    {"lat": 47.6250, "lon": -122.3260, "name": "I-5 @ Mercer St"},
+    {"lat": 47.6610, "lon": -122.3235, "name": "I-5 @ NE 45th St"},
+    {"lat": 47.6760, "lon": -122.3228, "name": "I-5 @ NE 65th St"},
+    {"lat": 47.6905, "lon": -122.3232, "name": "I-5 @ N 85th St"},
+    {"lat": 47.7050, "lon": -122.3235, "name": "I-5 @ Northgate Way"},
+    {"lat": 47.7220, "lon": -122.3235, "name": "I-5 @ N 130th St"},
+    {"lat": 47.6470, "lon": -122.3250, "name": "I-5 @ NE Boat St / 42nd"}
+  ],
+  "transit_stop": [
+    {"lat": 47.6115, "lon": -122.3375, "name": "Westlake Station"},
+    {"lat": 47.6497, "lon": -122.3037, "name": "U Washington Station"},
+    {"lat": 47.6600, "lon": -122.3140, "name": "U District Station"},
+    {"lat": 47.6763, "lon": -122.3170, "name": "Roosevelt Station"},
+    {"lat": 47.7027, "lon": -122.3275, "name": "Northgate Station"},
+    {"lat": 47.6685, "lon": -122.3770, "name": "Ballard RapidRide D"},
+    {"lat": 47.6510, "lon": -122.3490, "name": "Fremont Bridge Transit"}
+  ],
+  "park": [
+    {"lat": 47.6806, "lon": -122.3286, "name": "Green Lake Park"},
+    {"lat": 47.6456, "lon": -122.3344, "name": "Gas Works Park"},
+    {"lat": 47.6685, "lon": -122.3520, "name": "Woodland Park"},
+    {"lat": 47.6725, "lon": -122.3040, "name": "Ravenna Park"},
+    {"lat": 47.6580, "lon": -122.4060, "name": "Discovery Park"},
+    {"lat": 47.6300, "lon": -122.3160, "name": "Volunteer Park"},
+    {"lat": 47.6690, "lon": -122.2860, "name": "Magnuson Park"}
+  ],
+  "neighborhoods": [
+    {"name": "Fremont", "lat": 47.6510, "lon": -122.3500},
+    {"name": "Wallingford", "lat": 47.6615, "lon": -122.3340},
+    {"name": "Green Lake", "lat": 47.6800, "lon": -122.3280},
+    {"name": "Ballard", "lat": 47.6680, "lon": -122.3840},
+    {"name": "University District", "lat": 47.6600, "lon": -122.3140},
+    {"name": "Ravenna", "lat": 47.6760, "lon": -122.3020},
+    {"name": "Roosevelt", "lat": 47.6760, "lon": -122.3170},
+    {"name": "Northgate", "lat": 47.7050, "lon": -122.3280},
+    {"name": "Greenwood", "lat": 47.6930, "lon": -122.3550},
+    {"name": "Queen Anne", "lat": 47.6370, "lon": -122.3570}
+  ]
+}

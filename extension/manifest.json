@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Apartment Fit Capture",
+  "version": "0.1.0",
+  "description": "Capture user-visible structured data from the apartment listing you are viewing and send it to Apartment Fit for scoring. No bulk scraping or anti-bot circumvention.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Apartment Fit Capture"
+  }
+}
