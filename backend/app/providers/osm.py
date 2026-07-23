@@ -107,12 +107,18 @@ class NominatimGeocodingProvider(GeocodingProvider):
             return False
 
 
-# OSM tag filters per amenity category for Overpass.
+# OSM tag filters per amenity category for Overpass. Each value is a list of
+# tag-filters combined with OR (union), so a category can span several tags.
 _OVERPASS_FILTER = {
-    "supermarket": '["shop"="supermarket"]',
-    "park": '["leisure"="park"]',
-    "transit_stop": '["public_transport"="station"]',
-    "freeway_ramp": '["highway"="motorway_junction"]',
+    "supermarket": ['["shop"="supermarket"]'],
+    "park": ['["leisure"="park"]'],
+    # Option 1: major transit stations only (light rail / transit centers).
+    "transit_stop": ['["public_transport"="station"]', '["railway"="station"]'],
+    # Option 2: any transit stop, including ordinary bus stops.
+    "transit_any": ['["highway"="bus_stop"]', '["public_transport"="platform"]',
+                    '["public_transport"="station"]', '["railway"="station"]',
+                    '["railway"="tram_stop"]'],
+    "freeway_ramp": ['["highway"="motorway_junction"]'],
 }
 
 
@@ -120,14 +126,14 @@ class OverpassPoiProvider(PoiProvider):
     name = "overpass"
 
     def find(self, category: str, bbox: list[float], limit: int = 200) -> list[Poi]:
-        tag = _OVERPASS_FILTER.get(category)
-        if not tag:
+        filters = _OVERPASS_FILTER.get(category)
+        if not filters:
             return []
         base = os.getenv("OVERPASS_URL", "https://overpass-api.de/api/interpreter")
         min_lon, min_lat, max_lon, max_lat = bbox
         bbox_str = f"{min_lat},{min_lon},{max_lat},{max_lon}"
-        query = (f"[out:json][timeout:25];"
-                 f"(node{tag}({bbox_str});way{tag}({bbox_str}););out center {limit};")
+        union = "".join(f"node{t}({bbox_str});way{t}({bbox_str});" for t in filters)
+        query = f"[out:json][timeout:25];({union});out center {limit};"
         r = httpx.post(base, data={"data": query}, timeout=_TIMEOUT * 3)
         r.raise_for_status()
         out: list[Poi] = []

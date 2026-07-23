@@ -235,19 +235,39 @@ def terrain_max(slope_pct: float = 8.0, hard: bool = False, weight: float = 1.0)
 
 
 def transit(minutes: float = 10, hard: bool = False, weight: float = 1.0) -> Criterion:
+    """Option 1: nearest *major transit station* (light rail / transit center)."""
     return Criterion(
         id=_new_id(),
         type=CriterionType.TRANSIT,
         scope=Scope.AREA,
         kind=Kind.HARD if hard else Kind.PREFERENCE,
-        label=f"Walk <= {minutes} min to a transit stop",
+        label=f"Walk <= {minutes} min to a major transit station",
         threshold=minutes,
         units="minutes",
         comparator=Comparator.LTE,
         weight=weight,
         mode=Mode.WALK,
         method=Method.POI_DISTANCE,
-        destination=Destination(label="transit stop", amenity_type="transit_stop"),
+        destination=Destination(label="major transit station", amenity_type="transit_stop"),
+        missing_data=MissingDataBehavior.NEUTRAL,
+    )
+
+
+def transit_any(minutes: float = 10, hard: bool = False, weight: float = 1.0) -> Criterion:
+    """Option 2: nearest transit stop of *any* kind, including ordinary bus stops."""
+    return Criterion(
+        id=_new_id(),
+        type=CriterionType.TRANSIT,
+        scope=Scope.AREA,
+        kind=Kind.HARD if hard else Kind.PREFERENCE,
+        label=f"Walk <= {minutes} min to any transit stop (incl. bus)",
+        threshold=minutes,
+        units="minutes",
+        comparator=Comparator.LTE,
+        weight=weight,
+        mode=Mode.WALK,
+        method=Method.POI_DISTANCE,
+        destination=Destination(label="transit stop (incl. bus)", amenity_type="transit_any"),
         missing_data=MissingDataBehavior.NEUTRAL,
     )
 

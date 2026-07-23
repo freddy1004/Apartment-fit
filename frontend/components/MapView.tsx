@@ -25,7 +25,7 @@ interface Props {
 
 const POI_COLORS: Record<string, string> = {
   supermarket: "#48bb78", freeway_ramp: "#ed8936", transit_stop: "#4299e1",
-  park: "#38a169", destinations: "#f56565",
+  transit_any: "#63b3ed", park: "#38a169", destinations: "#f56565",
 };
 
 function colorRamp(layer: LayerInfo): any {

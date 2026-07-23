@@ -141,8 +141,17 @@ def import_layer(profile_id: str, body: LayerImportIn, db: Session = Depends(get
 _AMENITY_TYPE = {
     "supermarket": CriterionType.GROCERIES,
     "park": CriterionType.PARKS,
-    "transit_stop": CriterionType.TRANSIT,
+    "transit_stop": CriterionType.TRANSIT,   # major stations only
+    "transit_any": CriterionType.TRANSIT,    # any stop incl. bus
     "freeway_ramp": CriterionType.FREEWAY_ACCESS,
+}
+# Friendlier default labels per amenity type (used when the user gives no label).
+_AMENITY_LABEL = {
+    "supermarket": "grocery store",
+    "park": "park",
+    "transit_stop": "major transit station",
+    "transit_any": "transit stop (incl. bus)",
+    "freeway_ramp": "freeway entrance",
 }
 _LISTING_NUMERIC = {
     "rent": (CriterionType.RENT, Comparator.LTE, "usd_per_month"),
@@ -198,10 +207,9 @@ def add_criterion(profile_id: str, body: NewCriterionIn, db: Session = Depends(g
             if not body.amenity_type:
                 raise HTTPException(400, "amenity_type required for an amenity criterion")
             ctype = _AMENITY_TYPE.get(body.amenity_type, CriterionType.AMENITIES)
-            dest = Destination(label=body.amenity_type.replace("_", " "),
-                               amenity_type=body.amenity_type)
+            dest_desc = _AMENITY_LABEL.get(body.amenity_type, body.amenity_type.replace("_", " "))
+            dest = Destination(label=dest_desc, amenity_type=body.amenity_type)
             method = Method.POI_DISTANCE
-            dest_desc = dest.label
         else:  # a specific place
             lat, lon = body.dest_lat, body.dest_lon
             place_label = body.dest_address or "place"

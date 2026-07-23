@@ -11,7 +11,8 @@ interface Props {
 const AMENITIES = [
   { value: "supermarket", label: "Grocery store" },
   { value: "park", label: "Park" },
-  { value: "transit_stop", label: "Transit stop" },
+  { value: "transit_stop", label: "Major transit station (light rail / hub)" },
+  { value: "transit_any", label: "Any transit stop (incl. bus)" },
   { value: "freeway_ramp", label: "Freeway entrance" },
 ];
 const LISTING_NUMERIC = [
